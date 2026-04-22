@@ -506,17 +506,19 @@ let animationState = {
     spawnInterval: 1000,   // ms between spawns (controls parallelism)
     spawnerTimer: null,
     redSquares: [],
-    circleRadius: 300,
-    angleStep: 30
+    angleStep: 30,
+    ellipseMargin: 50  // px margin from viewport edges
 };
 
 function getCirclePosition(angleDeg) {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
+    const rx = cx - animationState.ellipseMargin;
+    const ry = cy - animationState.ellipseMargin;
     const rad = angleDeg * (Math.PI / 180);
     return {
-        x: cx + animationState.circleRadius * Math.cos(rad),
-        y: cy + animationState.circleRadius * Math.sin(rad)
+        x: cx + rx * Math.cos(rad),
+        y: cy + ry * Math.sin(rad)
     };
 }
 
