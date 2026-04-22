@@ -1,15 +1,14 @@
 /*
 Icons:
  - https://github.com/python-visualization/folium/issues/617
- - https://getbootstrap.com/docs/3.3/components/#glyphicons
  - https://fontawesome.com/v4.7.0/icons/ , with prefix='fa'
 */
 
 let iconNames = {
     'OK': 'camera',
     'damaged': 'camera',
-    'destroyed': 'remove',
-    'hidden': 'eye-close'
+    'destroyed': 'xmark',
+    'hidden': 'eye-slash'
 };
 
 let iconColors = {
@@ -111,7 +110,7 @@ function refreshMarker(id) {
         "icon": iconNames[invader.status] || 'wrench',
         "iconColor": "white",
         "markerColor": iconColors[invader.status] || 'red',
-        "prefix": "glyphicon"
+        "prefix": "fa"
     });
     const isCollected = collectedIds.has(id);
     if (isCollected) {
