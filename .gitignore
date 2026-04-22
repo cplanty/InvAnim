@@ -1,0 +1,13 @@
+# Local tooling / scratch
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+Thumbs.db
+
+# Never publish these
+MIGRATION_PLAN.md
+captures/
+routes/
+*.mp4
+*.kml

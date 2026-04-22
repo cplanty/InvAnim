@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+    <title>Space Invader map (viewer) | pnote.eu</title>
+
+    <script>
+        L_NO_TOUCH = false;
+        L_DISABLE_3D = false;
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <script
+        src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css" />
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css" />
+    <link rel="stylesheet"
+        href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet"
+        href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="map.css?cache=no" />
+    <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.81.1/dist/L.Control.Locate.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.81.1/dist/L.Control.Locate.min.js" charset="utf-8"></script>
+
+</head>
+
+<body>
+    <div id="settingsModal" class="modal">
+
+        <!-- Modal content -->
+        <div class="modal-content">
+            <h4>Display settings</h4>
+            <p><input type="checkbox" id="hideCollectedCheckbox" /> Hide flashed mosaics</p>
+            <p><input type="checkbox" id="hideDestroyedCheckbox" /> Hide destroyed / not flashable mosaics</p>
+
+            <h4>Backup</h4>
+            <p>The mosaics marked as flashed are stored locally. They are preserved between visits but not
+                synced between devices. You can download
+                and backup/restore them as needed.
+            </p>
+            <button id="downloadButton">Download flashed mosaics</button>
+            <h4>Restore from file</h4>
+            <p><span id="settingsRestoreStatus">⬇️ Upload file to restore flashed mosaics.</span></p>
+            <input type="file" id="uploadInput" />
+            <br />
+
+            <p>Warning: the file you upload replaces the current state, any invader not in the file will be marked as not flashed.</p>
+            <h4>Restore from app</h4>
+            <p>If you know the <a href="https://medium.com/@cborel/mapinvaders-f661a4b3301c" target="_blank">user ID</a> (uid) of your Flash Invaders account, you can enter it below to mark the mosaics collected in the app as flashed. <span id="restoreFromAppStatus"></span></p>
+            <input type="text" id="uidInput" placeholder="Enter Flash Invaders uid" />
+            <br/>
+            <button id="restoreFromAppButton">Restore from app</button>
+            <span id="settingsCloseBtn" style="position: absolute; top: 10px; right: 10px; cursor: pointer;">✖</span>
+        </div>
+
+    </div>
+
+    <div id="lookupModal" class="modal">
+        <div class="modal-content">
+            <h4>Find invader by ID</h4>
+            <input type="text" id="lookupInput" placeholder="Start typing invader ID, e.g. 'PA_1234'">
+            <div id="suggestions"></div>
+            <span id="lookupCloseBtn" style="position: absolute; top: 10px; right: 10px; cursor: pointer;">✖</span>
+        </div>
+    </div>
+
+    <div id="infoBox">
+        <a href="https://pnote.eu/projects/invaders/">What is this?</a> |
+        <a href="https://newsletter.pnote.eu">Newsletter</a> |
+        <a href="#" id="openSettings">Settings</a>
+    </div>
+
+    <div class="folium-map" id="map"></div>
+    <script src="map.js?nocache=3"></script>
+</body>
+</html>
