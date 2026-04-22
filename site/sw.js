@@ -16,19 +16,9 @@ self.addEventListener('install', (event) => {
     // event.waitUntil(self.clients.claim());
   });
   
-  // Minimal fetch event listener - THIS IS THE CRITICAL PART for installability
+  // Minimal fetch event listener - pass through to network
   self.addEventListener('fetch', (event) => {
-    console.log('Service Worker: Fetching ', event.request.url);
-    // This is the bare minimum fetch handler. It simply fetches the
-    // resource from the network. It doesn't provide any offline capability.
-    // It just fulfills the requirement that the fetch event is handled.
+    // Let the browser handle navigation requests normally
+    if (event.request.mode === 'navigate') return;
     event.respondWith(fetch(event.request));
-  
-    // An even more "do nothing" version, relying on browser default if
-    // respondWith isn't called or its promise rejects, might technically work
-    // in some cases, but explicitly handling it like above is clearer and safer:
-    //
-    // self.addEventListener('fetch', (event) => {
-    //   // Just having the listener is often enough to pass the check
-    // });
   });

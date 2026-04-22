@@ -507,14 +507,16 @@ let animationState = {
     spawnerTimer: null,
     redSquares: [],
     angleStep: 30,
-    ellipseMargin: 50  // px margin from viewport edges
+    ellipseMargin: 50,     // px margin from viewport edges
+    atlases: null          // loaded atlas metadata { PA_01: { atlas: "PA_00", x, y, w, h }, ... }
 };
 
 function getCirclePosition(angleDeg) {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
-    const rx = cx - animationState.ellipseMargin;
-    const ry = cy - animationState.ellipseMargin;
+    // 1.5× half-viewport so sprites spawn off-screen
+    const rx = cx * 1.5;
+    const ry = cy * 1.5;
     const rad = angleDeg * (Math.PI / 180);
     return {
         x: cx + rx * Math.cos(rad),
@@ -527,7 +529,28 @@ function initializePAAnimation() {
         .filter(id => id.startsWith('PA_'))
         .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
     animationState.paInvaders = paInvaders;
-    console.log(`PA animation ready with ${paInvaders.length} markers`);
+
+    // Load atlas metadata
+    const atlasFiles = ['PA_00', 'PA_01', 'PA_02', 'PA_03'];
+    const lookup = {};
+    Promise.all(atlasFiles.map(name =>
+        fetch(`assets/${name}.json`).then(r => r.json()).then(data => {
+            for (const [spriteId, info] of Object.entries(data.frames)) {
+                lookup[spriteId] = {
+                    atlas: name,
+                    x: info.frame.x,
+                    y: info.frame.y,
+                    w: info.frame.w,
+                    h: info.frame.h,
+                    imgW: data.meta.size.w,
+                    imgH: data.meta.size.h
+                };
+            }
+        })
+    )).then(() => {
+        animationState.atlases = lookup;
+        console.log(`PA animation ready: ${paInvaders.length} markers, ${Object.keys(lookup).length} sprites loaded`);
+    });
 }
 
 function toggleMarkersVisibility(hide) {
@@ -536,12 +559,23 @@ function toggleMarkersVisibility(hide) {
     });
 }
 
-function createRedSquareMarker(lat, lng) {
+function createSpriteMarker(lat, lng, paId) {
+    const atlasInfo = animationState.atlases && animationState.atlases[paId];
+    let html;
+    if (atlasInfo) {
+        const bgPosX = atlasInfo.x / (atlasInfo.imgW - atlasInfo.w) * 100;
+        const bgPosY = atlasInfo.y / (atlasInfo.imgH - atlasInfo.h) * 100;
+        const bgSizeX = atlasInfo.imgW / atlasInfo.w * 100;
+        const bgSizeY = atlasInfo.imgH / atlasInfo.h * 100;
+        html = `<div style="width:16px;height:16px;background:url('assets/${atlasInfo.atlas}.avif') no-repeat;background-position:${bgPosX}% ${bgPosY}%;background-size:${bgSizeX}% ${bgSizeY}%;"></div>`;
+    } else {
+        html = '<div style="width:16px;height:16px;background:red;"></div>';
+    }
     const icon = L.divIcon({
-        html: '<div style="width:5px;height:5px;background:red;"></div>',
+        html: html,
         className: 'red-square-marker',
-        iconSize: [5, 5],
-        iconAnchor: [2.5, 2.5]
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
     });
     const marker = L.marker([lat, lng], { icon }).addTo(map);
     animationState.redSquares.push(marker);
@@ -568,10 +602,26 @@ function spawnPA() {
     // End position on map
     const end = map.latLngToContainerPoint([inv.obf_lat, inv.obf_lng]);
 
-    // Create sprite
+    // Create sprite element
     const sprite = document.createElement('div');
     sprite.className = 'animation-card active';
-    sprite.innerHTML = `<div class="animation-image">${paId}</div>`;
+
+    // Use atlas image if available, fallback to text
+    const atlasInfo = animationState.atlases && animationState.atlases[paId];
+    if (atlasInfo) {
+        // Use percentage-based background positioning so it scales with card size
+        const bgPosX = atlasInfo.x / (atlasInfo.imgW - atlasInfo.w) * 100;
+        const bgPosY = atlasInfo.y / (atlasInfo.imgH - atlasInfo.h) * 100;
+        const bgSizeX = atlasInfo.imgW / atlasInfo.w * 100;
+        const bgSizeY = atlasInfo.imgH / atlasInfo.h * 100;
+        sprite.innerHTML = `<div class="animation-image" style="
+            background: url('assets/${atlasInfo.atlas}.avif') no-repeat;
+            background-position: ${bgPosX}% ${bgPosY}%;
+            background-size: ${bgSizeX}% ${bgSizeY}%;
+        "></div>`;
+    } else {
+        sprite.innerHTML = `<div class="animation-image">${paId}</div>`;
+    }
     sprite.style.cssText = `position:fixed;width:600px;height:600px;left:${start.x}px;top:${start.y}px;transform:translate(-50%,-50%)`;
     sprite.style.setProperty('--start-x', start.x + 'px');
     sprite.style.setProperty('--start-y', start.y + 'px');
@@ -583,8 +633,8 @@ function spawnPA() {
     // Start shrink animation next frame
     requestAnimationFrame(() => sprite.classList.add('shrinking'));
 
-    // Red square near end
-    setTimeout(() => createRedSquareMarker(inv.obf_lat, inv.obf_lng), animationState.animationSpeed * 0.75);
+    // Place mini sprite marker near end of animation
+    setTimeout(() => createSpriteMarker(inv.obf_lat, inv.obf_lng, paId), animationState.animationSpeed * 0.75);
 
     // Self-destruct after animation, check if done
     setTimeout(() => {

@@ -186,10 +186,10 @@ body {
     to {
         left: var(--end-x) !important;
         top: var(--end-y) !important;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        width: 16px;
+        height: 16px;
+        border-radius: 0;
+        box-shadow: none;
     }
 }
 
