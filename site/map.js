@@ -511,8 +511,59 @@ let animationState = {
     redSquares: [],
     angleStep: 30,
     atlases: null,         // loaded atlas metadata
-    galleryData: null      // cached API response from 'restore from app'
+    galleryData: null,     // cached API response from 'restore from app'
+    mode: 'pa',            // 'pa' or 'my'
+    cumulatedDistance: 0,   // km
+    lastLat: null,
+    lastLng: null,
+    cumulatedPoints: 0
 };
+
+// Haversine distance in km between two lat/lng points
+function haversineKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function updateStatsOverlay(id, inv) {
+    const overlay = document.getElementById('animationStats');
+    if (!overlay) return;
+
+    // Cumulated distance
+    if (animationState.lastLat !== null) {
+        animationState.cumulatedDistance += haversineKm(
+            animationState.lastLat, animationState.lastLng,
+            inv.obf_lat, inv.obf_lng
+        );
+    }
+    animationState.lastLat = inv.obf_lat;
+    animationState.lastLng = inv.obf_lng;
+
+    const count = animationState.nextIndex;
+    let html = `${id} · ${Math.round(animationState.cumulatedDistance)} km · #${count}`;
+
+    // Points and flash date only in 'my' mode
+    if (animationState.mode === 'my' && animationState.galleryData) {
+        const entry = animationState.galleryData.invaders[id];
+        if (entry) {
+            if (entry.point) {
+                animationState.cumulatedPoints += entry.point;
+                html += ` · ${animationState.cumulatedPoints} pts`;
+            }
+            if (entry.date_flash) {
+                html += ` · ${entry.date_flash}`;
+            }
+        }
+    }
+
+    overlay.textContent = html;
+    overlay.style.display = 'block';
+}
 
 function getCirclePosition(angleDeg) {
     const cx = window.innerWidth / 2;
@@ -600,6 +651,8 @@ function spawnNext() {
     const inv = invaders[id];
     if (!inv) return; // skip unknown invaders
 
+    updateStatsOverlay(id, inv);
+
     // Start position on ellipse
     const start = getCirclePosition(idx * animationState.angleStep);
     // End position on map
@@ -647,10 +700,15 @@ function spawnNext() {
     }, animationState.animationSpeed + 200);
 }
 
-function startAnimation(list) {
+function startAnimation(list, mode) {
     animationState.isPlaying = true;
     animationState.animationList = list;
     animationState.nextIndex = animationState.startIndex;
+    animationState.mode = mode || 'pa';
+    animationState.cumulatedDistance = 0;
+    animationState.cumulatedPoints = 0;
+    animationState.lastLat = null;
+    animationState.lastLng = null;
     toggleMarkersVisibility(true);
     document.getElementById('animationOverlay').classList.add('active');
 
@@ -671,6 +729,8 @@ function stopAnimation() {
     clearRedSquares();
     toggleMarkersVisibility(false);
     document.getElementById('animationOverlay').classList.remove('active');
+    const stats = document.getElementById('animationStats');
+    if (stats) stats.style.display = 'none';
 }
 
 function areAnyAnimationsRunning() {
@@ -699,7 +759,7 @@ document.getElementById('startAnimation').addEventListener('click', function(e) 
         stopAnimation();
     } else {
         clearRedSquares();
-        startAnimation(getPAList());
+        startAnimation(getPAList(), 'pa');
     }
 });
 
@@ -721,7 +781,7 @@ document.getElementById('startMyAnimation').addEventListener('click', function(e
         const list = getMyFlashedList();
         if (list && list.length > 0) {
             clearRedSquares();
-            startAnimation(list);
+            startAnimation(list, 'my');
         }
         return;
     }
@@ -734,7 +794,7 @@ document.getElementById('startMyAnimation').addEventListener('click', function(e
             const list = getMyFlashedList();
             if (list && list.length > 0) {
                 clearRedSquares();
-                startAnimation(list);
+                startAnimation(list, 'my');
                 console.log(`Animate My: ${list.length} flashed mosaics, from ${data.invaders[list[0]].date_flash} to ${data.invaders[list[list.length-1]].date_flash}`);
             } else {
                 alert('No flashed mosaics found for this UID.');
