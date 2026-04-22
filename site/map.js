@@ -502,8 +502,8 @@ let animationState = {
     isPlaying: false,
     nextPAIndex: 0,
     paInvaders: [],
-    animationSpeed: 4500,  // ms per sprite animation
-    spawnInterval: 1000,   // ms between spawns (controls parallelism)
+    animationSpeed: 5500,  // ms per sprite animation
+    spawnInterval: 500,   // ms between spawns (controls parallelism)
     spawnerTimer: null,
     redSquares: [],
     angleStep: 30,
@@ -515,8 +515,8 @@ function getCirclePosition(angleDeg) {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
     // 1.5× half-viewport so sprites spawn off-screen
-    const rx = cx * 1.5;
-    const ry = cy * 1.5;
+    const rx = cx * 1.8;
+    const ry = cy * 1.8;
     const rad = angleDeg * (Math.PI / 180);
     return {
         x: cx + rx * Math.cos(rad),
@@ -549,6 +549,11 @@ function initializePAAnimation() {
         })
     )).then(() => {
         animationState.atlases = lookup;
+        // Preload all atlas images so they're cached before animation
+        atlasFiles.forEach(name => {
+            const img = new Image();
+            img.src = `assets/${name}.avif`;
+        });
         console.log(`PA animation ready: ${paInvaders.length} markers, ${Object.keys(lookup).length} sprites loaded`);
     });
 }
