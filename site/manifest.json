@@ -1,24 +1,37 @@
 {
-    "name": "Space Invader map",
-    "short_name": "Space Invader map",
+    "name": "InvAnim — Space Invader mosaic map",
+    "short_name": "InvAnim",
+    "description": "An interactive map of Space Invader street art mosaics worldwide, with animated fly-throughs by number, by placement date, or by your own flashed collection.",
     "icons": [
-      {
-        "src": "/map-logo-maskable-192.png",
-        "sizes": "192x192",
-        "type": "image/png",
-        "purpose": "maskable"
-      },
-      {
-        "src": "/map-logo-maskable-512.png",
-        "sizes": "512x512",
-        "type": "image/png",
-        "purpose": "maskable"
-      }
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
     ],
-    "start_url": "/projects/invaders/map/",
-    "id": "/",
+    "start_url": "./",
+    "scope": "./",
+    "id": "invanim",
     "display": "standalone",
     "background_color": "#000000",
-    "theme_color": "#000000",
-    "description": "A crowd-sourced map of 4000+ Space Invader street art mosaics in 80+ cities around the world."
+    "theme_color": "#000000"
 }

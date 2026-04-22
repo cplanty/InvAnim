@@ -3,7 +3,8 @@
 <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 
-    <title>Space Invader map (viewer) | pnote.eu</title>
+    <title>InvAnim — Space Invader mosaic map &amp; animation</title>
+    <meta name="description" content="An interactive map of Space Invader street art mosaics worldwide, with animated fly-throughs by number, by placement date, or by your own flashed collection." />
 
     <script>
         L_NO_TOUCH = false;
@@ -18,7 +19,10 @@
     <script
         src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
-    <link rel="manifest" href="manifest.json">
+        <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="icons/favicon.png" sizes="any" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" />
@@ -31,7 +35,7 @@
         href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet"
         href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-    <link rel="stylesheet" href="map.css?cache=no" />
+    <link rel="stylesheet" href="map.css" />
     <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
@@ -81,12 +85,11 @@
     </div>
 
     <div id="infoBox">
-        <a href="https://pnote.eu/projects/invaders/">What is this?</a> |
-        <a href="https://newsletter.pnote.eu">Newsletter</a> |
+        <a href="https://pnote.eu/projects/invaders/" target="_blank" rel="noopener">Original by pnote.eu</a> |
         <a href="#" id="openSettings">Settings</a>
     </div>
 
     <div class="folium-map" id="map"></div>
-    <script src="map.js?nocache=3"></script>
+    <script src="map.js"></script>
 </body>
 </html>
