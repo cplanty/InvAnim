@@ -119,3 +119,84 @@ body {
 #suggestions div:hover {
     background-color: #f1f1f1;
 }
+
+/* Animation overlay */
+.animation-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    z-index: 9500;
+    pointer-events: none;
+}
+
+.animation-overlay.active {
+    display: block;
+}
+
+.animation-card {
+    position: fixed;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9501;
+    opacity: 0;
+}
+
+.animation-card.active {
+    opacity: 1;
+    transition: opacity 0.2s ease-in;
+}
+
+.animation-image {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: bold;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Smooth shrink animation */
+.animation-card.shrinking {
+    animation: shrinkToMarker 4.5s ease-in-out forwards !important;
+}
+
+@keyframes shrinkToMarker {
+    from {
+        left: var(--start-x) !important;
+        top: var(--start-y) !important;
+        width: 600px;
+        height: 600px;
+        border-radius: 10px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+    to {
+        left: var(--end-x) !important;
+        top: var(--end-y) !important;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* Red square markers for completed PA animations */
+.red-square-marker {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+

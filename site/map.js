@@ -198,12 +198,12 @@ let map = L.map(
     }
 );
 L.control.attribution({position: 'topright'}).addTo(map);
-let markers = L.markerClusterGroup({
-    showCoverageOnHover: true,
-    /*maxClusterRadius: 50,*/
-    disableClusteringAtZoom: 15,
-    spiderfyOnMaxZoom: false,
-});
+ let markers = L.markerClusterGroup({
+     showCoverageOnHover: true,
+     maxClusterRadius: 35,
+     disableClusteringAtZoom: 10,
+     spiderfyOnMaxZoom: true,  // Better UX: click cluster to unspider
+ });
 map.addLayer(markers);
 
 L.control.scale({
@@ -295,10 +295,14 @@ fetch('invaders.json?nocache=1')
             map.setView([invader.obf_lat, invader.obf_lng], map.getMaxZoom());
             invader.marker.openPopup();
         }
+        
+        // Initialize PA animation
+        initializePAAnimation();
     })
     .catch(error => {
         console.error('Error loading JSON:', error);
     });
+
 
 function updateUrlFragment() {
     var currZoom = map.getZoom();
@@ -491,6 +495,146 @@ document.getElementById('restoreFromAppButton').addEventListener('click', functi
         .catch(error => {
             statusSpan.innerHTML = `⚠️ Error fetching data`;
         });
+});
+
+// PA Animation - spawner-based, no sequences or batches
+let animationState = {
+    isPlaying: false,
+    nextPAIndex: 0,
+    paInvaders: [],
+    animationSpeed: 4500,  // ms per sprite animation
+    spawnInterval: 1000,   // ms between spawns (controls parallelism)
+    spawnerTimer: null,
+    redSquares: [],
+    circleRadius: 300,
+    angleStep: 30
+};
+
+function getCirclePosition(angleDeg) {
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    const rad = angleDeg * (Math.PI / 180);
+    return {
+        x: cx + animationState.circleRadius * Math.cos(rad),
+        y: cy + animationState.circleRadius * Math.sin(rad)
+    };
+}
+
+function initializePAAnimation() {
+    const paInvaders = Object.keys(invaders)
+        .filter(id => id.startsWith('PA_'))
+        .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
+    animationState.paInvaders = paInvaders;
+    console.log(`PA animation ready with ${paInvaders.length} markers`);
+}
+
+function toggleMarkersVisibility(hide) {
+    markers.eachLayer(layer => {
+        if (layer instanceof L.Marker) layer.setOpacity(hide ? 0 : 1);
+    });
+}
+
+function createRedSquareMarker(lat, lng) {
+    const icon = L.divIcon({
+        html: '<div style="width:5px;height:5px;background:red;"></div>',
+        className: 'red-square-marker',
+        iconSize: [5, 5],
+        iconAnchor: [2.5, 2.5]
+    });
+    const marker = L.marker([lat, lng], { icon }).addTo(map);
+    animationState.redSquares.push(marker);
+}
+
+function clearRedSquares() {
+    animationState.redSquares.forEach(m => map.removeLayer(m));
+    animationState.redSquares = [];
+}
+
+function spawnPA() {
+    if (!animationState.isPlaying) return;
+    if (animationState.nextPAIndex >= animationState.paInvaders.length) {
+        clearInterval(animationState.spawnerTimer);
+        return;
+    }
+
+    const paIndex = animationState.nextPAIndex++;
+    const paId = animationState.paInvaders[paIndex];
+    const inv = invaders[paId];
+
+    // Start position on circle
+    const start = getCirclePosition(paIndex * animationState.angleStep);
+    // End position on map
+    const end = map.latLngToContainerPoint([inv.obf_lat, inv.obf_lng]);
+
+    // Create sprite
+    const sprite = document.createElement('div');
+    sprite.className = 'animation-card active';
+    sprite.innerHTML = `<div class="animation-image">${paId}</div>`;
+    sprite.style.cssText = `position:fixed;width:600px;height:600px;left:${start.x}px;top:${start.y}px;transform:translate(-50%,-50%)`;
+    sprite.style.setProperty('--start-x', start.x + 'px');
+    sprite.style.setProperty('--start-y', start.y + 'px');
+    sprite.style.setProperty('--end-x', end.x + 'px');
+    sprite.style.setProperty('--end-y', end.y + 'px');
+
+    document.getElementById('animationOverlay').appendChild(sprite);
+
+    // Start shrink animation next frame
+    requestAnimationFrame(() => sprite.classList.add('shrinking'));
+
+    // Red square near end
+    setTimeout(() => createRedSquareMarker(inv.obf_lat, inv.obf_lng), animationState.animationSpeed * 0.75);
+
+    // Self-destruct after animation, check if done
+    setTimeout(() => {
+        sprite.remove();
+        if (animationState.nextPAIndex >= animationState.paInvaders.length &&
+            !document.querySelector('#animationOverlay .animation-card')) {
+            finishAnimation();
+        }
+    }, animationState.animationSpeed + 200);
+}
+
+function startPAAnimation() {
+    animationState.isPlaying = true;
+    animationState.nextPAIndex = 0;
+    toggleMarkersVisibility(true);
+    document.getElementById('animationOverlay').classList.add('active');
+    document.getElementById('startAnimation').textContent = 'Stop Animations';
+
+    spawnPA();
+    animationState.spawnerTimer = setInterval(spawnPA, animationState.spawnInterval);
+}
+
+function finishAnimation() {
+    animationState.isPlaying = false;
+    toggleMarkersVisibility(false);
+    document.getElementById('startAnimation').textContent = 'Animate PA';
+    document.getElementById('animationOverlay').classList.remove('active');
+}
+
+function stopPAAnimation() {
+    animationState.isPlaying = false;
+    clearInterval(animationState.spawnerTimer);
+    document.querySelectorAll('#animationOverlay .animation-card').forEach(el => el.remove());
+    clearRedSquares();
+    toggleMarkersVisibility(false);
+    document.getElementById('animationOverlay').classList.remove('active');
+    document.getElementById('startAnimation').textContent = 'Animate PA';
+}
+
+function areAnyAnimationsRunning() {
+    return animationState.isPlaying;
+}
+
+document.getElementById('startAnimation').addEventListener('click', function(e) {
+    e.preventDefault();
+    
+    if (areAnyAnimationsRunning()) {
+        stopPAAnimation();
+    } else {
+        clearRedSquares();
+        startPAAnimation();
+    }
 });
 
 if ('serviceWorker' in navigator) {

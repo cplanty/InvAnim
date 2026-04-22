@@ -17,10 +17,7 @@
     <script
         src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
-            <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#000000" />
-    <link rel="icon" href="icons/favicon.png" sizes="any" />
-    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+        <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000" />
     <link rel="icon" href="icons/favicon.png" sizes="any" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -83,9 +80,14 @@
         </div>
     </div>
 
+    <div id="animationOverlay" class="animation-overlay">
+        <!-- Sprites are created dynamically by spawnPA() -->
+    </div>
+
     <div id="infoBox">
         <a href="https://pnote.eu/projects/invaders/" target="_blank" rel="noopener">Original by pnote.eu</a> |
-        <a href="#" id="openSettings">Settings</a>
+        <a href="#" id="openSettings">Settings</a> |
+        <a href="#" id="startAnimation" style="color: #ff6b6b;">Animate PA</a>
     </div>
 
     <div class="folium-map" id="map"></div>
