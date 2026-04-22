@@ -92,7 +92,7 @@ body {
 
 #infoBox {
   position: fixed;
-  bottom: 5px; left: 5px; width: 250px; height: 30px;
+  bottom: 5px; left: 5px; width: auto; height: 30px;
   border: 2px solid grey; z-index:9999;
   border-radius: .3rem;
   padding: 2px 2px 2px 2px;

@@ -491,24 +491,27 @@ document.getElementById('restoreFromAppButton').addEventListener('click', functi
             refreshAll();
 
             localStorage.setItem('uid', uid);
+            // Cache gallery data for Animate My
+            animationState.galleryData = data;
         })
         .catch(error => {
             statusSpan.innerHTML = `⚠️ Error fetching data`;
         });
 });
 
-// PA Animation - spawner-based, no sequences or batches
+// Animation - spawner-based, supports PA sequence and user's flashed mosaics
 let animationState = {
     isPlaying: false,
-    nextPAIndex: 0,
-    paInvaders: [],
+    nextIndex: 0,
+    startIndex: 0,         // start animation at this index (0 = first)
+    animationList: [],     // ordered list of invader IDs to animate
     animationSpeed: 5500,  // ms per sprite animation
-    spawnInterval: 500,   // ms between spawns (controls parallelism)
+    spawnInterval: 500,    // ms between spawns (controls parallelism)
     spawnerTimer: null,
     redSquares: [],
     angleStep: 30,
-    ellipseMargin: 50,     // px margin from viewport edges
-    atlases: null          // loaded atlas metadata { PA_01: { atlas: "PA_00", x, y, w, h }, ... }
+    atlases: null,         // loaded atlas metadata
+    galleryData: null      // cached API response from 'restore from app'
 };
 
 function getCirclePosition(angleDeg) {
@@ -525,12 +528,7 @@ function getCirclePosition(angleDeg) {
 }
 
 function initializePAAnimation() {
-    const paInvaders = Object.keys(invaders)
-        .filter(id => id.startsWith('PA_'))
-        .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
-    animationState.paInvaders = paInvaders;
-
-    // Load atlas metadata
+    // Load atlas metadata and preload images
     const atlasFiles = ['PA_00', 'PA_01', 'PA_02', 'PA_03'];
     const lookup = {};
     Promise.all(atlasFiles.map(name =>
@@ -549,12 +547,11 @@ function initializePAAnimation() {
         })
     )).then(() => {
         animationState.atlases = lookup;
-        // Preload all atlas images so they're cached before animation
         atlasFiles.forEach(name => {
             const img = new Image();
             img.src = `assets/${name}.avif`;
         });
-        console.log(`PA animation ready: ${paInvaders.length} markers, ${Object.keys(lookup).length} sprites loaded`);
+        console.log(`Animation ready: ${Object.keys(lookup).length} sprites loaded`);
     });
 }
 
@@ -591,19 +588,20 @@ function clearRedSquares() {
     animationState.redSquares = [];
 }
 
-function spawnPA() {
+function spawnNext() {
     if (!animationState.isPlaying) return;
-    if (animationState.nextPAIndex >= animationState.paInvaders.length) {
+    if (animationState.nextIndex >= animationState.animationList.length) {
         clearInterval(animationState.spawnerTimer);
         return;
     }
 
-    const paIndex = animationState.nextPAIndex++;
-    const paId = animationState.paInvaders[paIndex];
-    const inv = invaders[paId];
+    const idx = animationState.nextIndex++;
+    const id = animationState.animationList[idx];
+    const inv = invaders[id];
+    if (!inv) return; // skip unknown invaders
 
-    // Start position on circle
-    const start = getCirclePosition(paIndex * animationState.angleStep);
+    // Start position on ellipse
+    const start = getCirclePosition(idx * animationState.angleStep);
     // End position on map
     const end = map.latLngToContainerPoint([inv.obf_lat, inv.obf_lng]);
 
@@ -612,9 +610,8 @@ function spawnPA() {
     sprite.className = 'animation-card active';
 
     // Use atlas image if available, fallback to text
-    const atlasInfo = animationState.atlases && animationState.atlases[paId];
+    const atlasInfo = animationState.atlases && animationState.atlases[id];
     if (atlasInfo) {
-        // Use percentage-based background positioning so it scales with card size
         const bgPosX = atlasInfo.x / (atlasInfo.imgW - atlasInfo.w) * 100;
         const bgPosY = atlasInfo.y / (atlasInfo.imgH - atlasInfo.h) * 100;
         const bgSizeX = atlasInfo.imgW / atlasInfo.w * 100;
@@ -625,7 +622,7 @@ function spawnPA() {
             background-size: ${bgSizeX}% ${bgSizeY}%;
         "></div>`;
     } else {
-        sprite.innerHTML = `<div class="animation-image">${paId}</div>`;
+        sprite.innerHTML = `<div class="animation-image">${id}</div>`;
     }
     sprite.style.cssText = `position:fixed;width:600px;height:600px;left:${start.x}px;top:${start.y}px;transform:translate(-50%,-50%)`;
     sprite.style.setProperty('--start-x', start.x + 'px');
@@ -635,63 +632,115 @@ function spawnPA() {
 
     document.getElementById('animationOverlay').appendChild(sprite);
 
-    // Start shrink animation next frame
     requestAnimationFrame(() => sprite.classList.add('shrinking'));
 
     // Place mini sprite marker near end of animation
-    setTimeout(() => createSpriteMarker(inv.obf_lat, inv.obf_lng, paId), animationState.animationSpeed * 0.75);
+    setTimeout(() => createSpriteMarker(inv.obf_lat, inv.obf_lng, id), animationState.animationSpeed * 0.75);
 
     // Self-destruct after animation, check if done
     setTimeout(() => {
         sprite.remove();
-        if (animationState.nextPAIndex >= animationState.paInvaders.length &&
+        if (animationState.nextIndex >= animationState.animationList.length &&
             !document.querySelector('#animationOverlay .animation-card')) {
             finishAnimation();
         }
     }, animationState.animationSpeed + 200);
 }
 
-function startPAAnimation() {
+function startAnimation(list) {
     animationState.isPlaying = true;
-    animationState.nextPAIndex = 0;
+    animationState.animationList = list;
+    animationState.nextIndex = animationState.startIndex;
     toggleMarkersVisibility(true);
     document.getElementById('animationOverlay').classList.add('active');
-    document.getElementById('startAnimation').textContent = 'Stop Animations';
 
-    spawnPA();
-    animationState.spawnerTimer = setInterval(spawnPA, animationState.spawnInterval);
+    spawnNext();
+    animationState.spawnerTimer = setInterval(spawnNext, animationState.spawnInterval);
 }
 
 function finishAnimation() {
     animationState.isPlaying = false;
     toggleMarkersVisibility(false);
-    document.getElementById('startAnimation').textContent = 'Animate PA';
     document.getElementById('animationOverlay').classList.remove('active');
 }
 
-function stopPAAnimation() {
+function stopAnimation() {
     animationState.isPlaying = false;
     clearInterval(animationState.spawnerTimer);
     document.querySelectorAll('#animationOverlay .animation-card').forEach(el => el.remove());
     clearRedSquares();
     toggleMarkersVisibility(false);
     document.getElementById('animationOverlay').classList.remove('active');
-    document.getElementById('startAnimation').textContent = 'Animate PA';
 }
 
 function areAnyAnimationsRunning() {
     return animationState.isPlaying;
 }
 
+// Build PA list sorted by number
+function getPAList() {
+    return Object.keys(invaders)
+        .filter(id => id.startsWith('PA_'))
+        .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
+}
+
+// Build user's flashed list sorted by date_flash
+function getMyFlashedList() {
+    if (!animationState.galleryData) return null;
+    return Object.entries(animationState.galleryData.invaders)
+        .filter(([id]) => invaders[id]) // only invaders we have on the map
+        .sort((a, b) => a[1].date_flash.localeCompare(b[1].date_flash))
+        .map(([id]) => id);
+}
+
 document.getElementById('startAnimation').addEventListener('click', function(e) {
     e.preventDefault();
-    
     if (areAnyAnimationsRunning()) {
-        stopPAAnimation();
+        stopAnimation();
     } else {
         clearRedSquares();
-        startPAAnimation();
+        startAnimation(getPAList());
     }
+});
+
+document.getElementById('startMyAnimation').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (areAnyAnimationsRunning()) {
+        stopAnimation();
+        return;
+    }
+
+    const uid = localStorage.getItem('uid');
+    if (!uid) {
+        alert('Please enter your UID in Settings → Restore from app first.');
+        return;
+    }
+
+    // Fetch gallery data if not cached
+    if (animationState.galleryData) {
+        const list = getMyFlashedList();
+        if (list && list.length > 0) {
+            clearRedSquares();
+            startAnimation(list);
+        }
+        return;
+    }
+
+    const apiUrl = `https://api.space-invaders.com/flashinvaders_v3_pas_trop_predictif/api/gallery?uid=${uid}`;
+    fetch(apiUrl)
+        .then(r => r.json())
+        .then(data => {
+            animationState.galleryData = data;
+            const list = getMyFlashedList();
+            if (list && list.length > 0) {
+                clearRedSquares();
+                startAnimation(list);
+                console.log(`Animate My: ${list.length} flashed mosaics, from ${data.invaders[list[0]].date_flash} to ${data.invaders[list[list.length-1]].date_flash}`);
+            } else {
+                alert('No flashed mosaics found for this UID.');
+            }
+        })
+        .catch(() => alert('Error fetching gallery data. Check your UID in Settings.'));
 });
 
 if ('serviceWorker' in navigator) {
