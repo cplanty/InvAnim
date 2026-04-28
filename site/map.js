@@ -101,6 +101,22 @@ function onNotCollected(id) {
     refreshMarker(id);
 }
 
+function getSpriteStyle(invaderId) {
+    const atlasInfo = animationState.atlases && animationState.atlases[invaderId];
+    if (!atlasInfo) return null;
+    const bgPosX = (atlasInfo.imgW === atlasInfo.w) ? 0 : atlasInfo.x / (atlasInfo.imgW - atlasInfo.w) * 100;
+    const bgPosY = (atlasInfo.imgH === atlasInfo.h) ? 0 : atlasInfo.y / (atlasInfo.imgH - atlasInfo.h) * 100;
+    const bgSizeX = atlasInfo.imgW / atlasInfo.w * 100;
+    const bgSizeY = atlasInfo.imgH / atlasInfo.h * 100;
+    return `background:url('assets/${atlasInfo.atlas}.avif') no-repeat;background-position:${bgPosX}% ${bgPosY}%;background-size:${bgSizeX}% ${bgSizeY}%;image-rendering:pixelated;`;
+}
+
+function getSpriteHtml(invaderId, size) {
+    const style = getSpriteStyle(invaderId);
+    if (!style) return '';
+    return `<div style="width:${size}px;height:${size}px;${style}"></div>`;
+}
+
 function refreshMarker(id) {
     let invader = invaders[id];
 
@@ -120,6 +136,7 @@ function refreshMarker(id) {
 
     // Popup.
     var popupContent = `<h4>${invader.id} (${invader.status})</h4>`;
+    popupContent += getSpriteHtml(invader.id, 128);
     if (invader.hint) {
         popupContent += `<p><i>${invader.hint}</i></p>`;
     }
@@ -296,8 +313,8 @@ fetch('invaders.json?nocache=1')
             invader.marker.openPopup();
         }
         
-        // Initialize PA animation
-        initializePAAnimation();
+        // Initialize sprite atlases for all cities
+        initializeAtlases();
     })
     .catch(error => {
         console.error('Error loading JSON:', error);
@@ -578,32 +595,19 @@ function getCirclePosition(angleDeg) {
     };
 }
 
-function initializePAAnimation() {
-    // Load atlas metadata and preload images
-    const atlasFiles = ['PA_00', 'PA_01', 'PA_02', 'PA_03'];
-    const lookup = {};
-    Promise.all(atlasFiles.map(name =>
-        fetch(`assets/${name}.json`).then(r => r.json()).then(data => {
-            for (const [spriteId, info] of Object.entries(data.frames)) {
-                lookup[spriteId] = {
-                    atlas: name,
-                    x: info.frame.x,
-                    y: info.frame.y,
-                    w: info.frame.w,
-                    h: info.frame.h,
-                    imgW: data.meta.size.w,
-                    imgH: data.meta.size.h
-                };
-            }
+function initializeAtlases() {
+    fetch('assets/all_atlases.json')
+        .then(r => r.json())
+        .then(data => {
+            animationState.atlases = data.sprites;
+            // Preload all atlas AVIF images for instant rendering
+            data.atlasFiles.forEach(name => {
+                const img = new Image();
+                img.src = `assets/${name}.avif`;
+            });
+            console.log(`Atlases ready: ${Object.keys(data.sprites).length} sprites across ${data.atlasFiles.length} atlases`);
         })
-    )).then(() => {
-        animationState.atlases = lookup;
-        atlasFiles.forEach(name => {
-            const img = new Image();
-            img.src = `assets/${name}.avif`;
-        });
-        console.log(`Animation ready: ${Object.keys(lookup).length} sprites loaded`);
-    });
+        .catch(err => console.error('Failed to load atlas metadata:', err));
 }
 
 function toggleMarkersVisibility(hide) {
@@ -613,17 +617,7 @@ function toggleMarkersVisibility(hide) {
 }
 
 function createSpriteMarker(lat, lng, paId) {
-    const atlasInfo = animationState.atlases && animationState.atlases[paId];
-    let html;
-    if (atlasInfo) {
-        const bgPosX = atlasInfo.x / (atlasInfo.imgW - atlasInfo.w) * 100;
-        const bgPosY = atlasInfo.y / (atlasInfo.imgH - atlasInfo.h) * 100;
-        const bgSizeX = atlasInfo.imgW / atlasInfo.w * 100;
-        const bgSizeY = atlasInfo.imgH / atlasInfo.h * 100;
-        html = `<div style="width:16px;height:16px;background:url('assets/${atlasInfo.atlas}.avif') no-repeat;background-position:${bgPosX}% ${bgPosY}%;background-size:${bgSizeX}% ${bgSizeY}%;"></div>`;
-    } else {
-        html = '<div style="width:16px;height:16px;background:red;"></div>';
-    }
+    let html = getSpriteHtml(paId, 16) || '<div style="width:16px;height:16px;background:red;"></div>';
     const icon = L.divIcon({
         html: html,
         className: 'red-square-marker',
@@ -663,17 +657,9 @@ function spawnNext() {
     sprite.className = 'animation-card active';
 
     // Use atlas image if available, fallback to text
-    const atlasInfo = animationState.atlases && animationState.atlases[id];
-    if (atlasInfo) {
-        const bgPosX = atlasInfo.x / (atlasInfo.imgW - atlasInfo.w) * 100;
-        const bgPosY = atlasInfo.y / (atlasInfo.imgH - atlasInfo.h) * 100;
-        const bgSizeX = atlasInfo.imgW / atlasInfo.w * 100;
-        const bgSizeY = atlasInfo.imgH / atlasInfo.h * 100;
-        sprite.innerHTML = `<div class="animation-image" style="
-            background: url('assets/${atlasInfo.atlas}.avif') no-repeat;
-            background-position: ${bgPosX}% ${bgPosY}%;
-            background-size: ${bgSizeX}% ${bgSizeY}%;
-        "></div>`;
+    const bgStyle = getSpriteStyle(id);
+    if (bgStyle) {
+        sprite.innerHTML = `<div class="animation-image" style="${bgStyle}"></div>`;
     } else {
         sprite.innerHTML = `<div class="animation-image">${id}</div>`;
     }
@@ -749,6 +735,7 @@ function getMyFlashedList() {
     if (!animationState.galleryData) return null;
     return Object.entries(animationState.galleryData.invaders)
         .filter(([id]) => invaders[id]) // only invaders we have on the map
+        // .filter(([id]) => id.startsWith('RN_')) // TEMP: RN only for debugging
         .sort((a, b) => a[1].date_flash.localeCompare(b[1].date_flash))
         .map(([id]) => id);
 }
