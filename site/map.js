@@ -516,14 +516,15 @@ document.getElementById('restoreFromAppButton').addEventListener('click', functi
         });
 });
 
+// workd view - http://localhost:8000/#zoom=3&lat=16.8045&lng=5.6250
 // Animation - spawner-based, supports PA sequence and user's flashed mosaics
 let animationState = {
     isPlaying: false,
     nextIndex: 0,
     startIndex: 0,         // start animation at this index (0 = first)
     animationList: [],     // ordered list of invader IDs to animate
-    animationSpeed: 5500,  // ms per sprite animation
-    spawnInterval: 500,    // ms between spawns (controls parallelism)
+    animationSpeed: 1500,  // ms per sprite animation
+    spawnInterval: 50,    // ms between spawns (controls parallelism)
     spawnerTimer: null,
     redSquares: [],
     angleStep: 30,
@@ -669,14 +670,18 @@ function spawnNext() {
     const idx = animationState.nextIndex++;
     const id = animationState.animationList[idx];
     const inv = invaders[id];
-    if (!inv) return; // skip unknown invaders
+    // Use default coords from extraData if invader not in invaders.json
+    const extraEntry = animationState.extraData && animationState.extraData[id];
+    const lat = inv ? inv.obf_lat : (extraEntry && extraEntry.default_lat);
+    const lng = inv ? inv.obf_lng : (extraEntry && extraEntry.default_lng);
+    if (lat == null || lng == null) return; // skip invaders with no coords at all
 
-    updateStatsOverlay(id, inv);
+    updateStatsOverlay(id, inv || { obf_lat: lat, obf_lng: lng });
 
     // Start position on ellipse
     const start = getCirclePosition(idx * animationState.angleStep);
     // End position on map
-    const end = map.latLngToContainerPoint([inv.obf_lat, inv.obf_lng]);
+    const end = map.latLngToContainerPoint([lat, lng]);
 
     // Create sprite element
     const sprite = document.createElement('div');
@@ -690,8 +695,9 @@ function spawnNext() {
         sprite.innerHTML = `<div class="animation-image">${id}</div>`;
     }
     sprite.style.cssText = `position:fixed;width:600px;height:600px;left:${start.x}px;top:${start.y}px;transform:translate(-50%,-50%)`;
-    sprite.dataset.lat = inv.obf_lat;
-    sprite.dataset.lng = inv.obf_lng;
+    sprite.dataset.lat = lat;
+    sprite.dataset.lng = lng;
+    sprite.style.setProperty('--anim-duration', animationState.animationSpeed + 'ms');
     sprite.style.setProperty('--start-x', start.x + 'px');
     sprite.style.setProperty('--start-y', start.y + 'px');
     sprite.style.setProperty('--end-x', end.x + 'px');
@@ -702,7 +708,7 @@ function spawnNext() {
     requestAnimationFrame(() => sprite.classList.add('shrinking'));
 
     // Place mini sprite marker near end of animation
-    setTimeout(() => createSpriteMarker(inv.obf_lat, inv.obf_lng, id), animationState.animationSpeed * 0.75);
+    setTimeout(() => createSpriteMarker(lat, lng, id), animationState.animationSpeed * 0.75);
 
     // Self-destruct after animation, check if done
     setTimeout(() => {
@@ -810,7 +816,7 @@ function getMyFlashedList() {
 function getAllList() {
     if (!animationState.extraData) return null;
     return Object.entries(animationState.extraData)
-        .filter(([id]) => invaders[id]) // only invaders we have on the map
+        .filter(([id, data]) => invaders[id] || (data.default_lat && data.default_lng))
         .sort((a, b) => a[1].date_pos.localeCompare(b[1].date_pos))
         .map(([id]) => id);
 }

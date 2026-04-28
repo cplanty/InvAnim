@@ -171,7 +171,7 @@ body {
 
 /* Smooth shrink animation */
 .animation-card.shrinking {
-    animation: shrinkToMarker 4.5s ease-in-out forwards !important;
+    animation: shrinkToMarker var(--anim-duration, 4.5s) ease-in-out forwards !important;
 }
 
 @keyframes shrinkToMarker {
