@@ -529,7 +529,8 @@ let animationState = {
     angleStep: 30,
     atlases: null,         // loaded atlas metadata
     galleryData: null,     // cached API response from 'restore from app'
-    mode: 'pa',            // 'pa' or 'my'
+    extraData: null,       // loaded invaders_extra.json (date_pos, points)
+    mode: 'pa',            // 'pa', 'my', or 'all'
     cumulatedDistance: 0,   // km
     lastLat: null,
     lastLng: null,
@@ -564,7 +565,7 @@ function updateStatsOverlay(id, inv) {
     const count = animationState.nextIndex;
     let html = `${id} · ${Math.round(animationState.cumulatedDistance)} km · #${count}`;
 
-    // Points and flash date only in 'my' mode
+    // Points and date from gallery data ('my' mode)
     if (animationState.mode === 'my' && animationState.galleryData) {
         const entry = animationState.galleryData.invaders[id];
         if (entry) {
@@ -574,6 +575,20 @@ function updateStatsOverlay(id, inv) {
             }
             if (entry.date_flash) {
                 html += ` · ${entry.date_flash}`;
+            }
+        }
+    }
+
+    // Points and date_pos from extra data ('all' and 'pa' modes)
+    if ((animationState.mode === 'all' || animationState.mode === 'pa') && animationState.extraData) {
+        const entry = animationState.extraData[id];
+        if (entry) {
+            if (entry.points) {
+                animationState.cumulatedPoints += entry.points;
+                html += ` · ${animationState.cumulatedPoints} pts`;
+            }
+            if (entry.date_pos) {
+                html += ` · ${entry.date_pos}`;
             }
         }
     }
@@ -608,12 +623,23 @@ function initializeAtlases() {
             console.log(`Atlases ready: ${Object.keys(data.sprites).length} sprites across ${data.atlasFiles.length} atlases`);
         })
         .catch(err => console.error('Failed to load atlas metadata:', err));
+
+    // Preload extra data (date_pos, points)
+    fetch('invaders_extra.json')
+        .then(r => r.json())
+        .then(data => {
+            animationState.extraData = data;
+            console.log(`Extra data ready: ${Object.keys(data).length} invaders with date_pos/points`);
+        })
+        .catch(err => console.error('Failed to load invaders_extra.json:', err));
 }
 
 function toggleMarkersVisibility(hide) {
-    markers.eachLayer(layer => {
-        if (layer instanceof L.Marker) layer.setOpacity(hide ? 0 : 1);
-    });
+    if (hide) {
+        map.removeLayer(markers);
+    } else {
+        map.addLayer(markers);
+    }
 }
 
 function createSpriteMarker(lat, lng, paId) {
@@ -740,6 +766,15 @@ function getMyFlashedList() {
         .map(([id]) => id);
 }
 
+// Build all-invaders list sorted by date_pos from invaders_extra.json
+function getAllList() {
+    if (!animationState.extraData) return null;
+    return Object.entries(animationState.extraData)
+        .filter(([id]) => invaders[id]) // only invaders we have on the map
+        .sort((a, b) => a[1].date_pos.localeCompare(b[1].date_pos))
+        .map(([id]) => id);
+}
+
 document.getElementById('startAnimation').addEventListener('click', function(e) {
     e.preventDefault();
     if (areAnyAnimationsRunning()) {
@@ -788,6 +823,39 @@ document.getElementById('startMyAnimation').addEventListener('click', function(e
             }
         })
         .catch(() => alert('Error fetching gallery data. Check your UID in Settings.'));
+});
+
+document.getElementById('startAllAnimation').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (areAnyAnimationsRunning()) {
+        stopAnimation();
+        return;
+    }
+
+    // Load extra data if not cached
+    if (animationState.extraData) {
+        const list = getAllList();
+        if (list && list.length > 0) {
+            clearRedSquares();
+            startAnimation(list, 'all');
+        }
+        return;
+    }
+
+    fetch('invaders_extra.json')
+        .then(r => r.json())
+        .then(data => {
+            animationState.extraData = data;
+            const list = getAllList();
+            if (list && list.length > 0) {
+                clearRedSquares();
+                startAnimation(list, 'all');
+                console.log(`Animate All: ${list.length} invaders, from ${data[list[0]].date_pos} to ${data[list[list.length-1]].date_pos}`);
+            } else {
+                alert('No invaders with placement dates found.');
+            }
+        })
+        .catch(() => alert('Error loading invaders_extra.json.'));
 });
 
 if ('serviceWorker' in navigator) {
