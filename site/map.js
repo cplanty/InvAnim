@@ -690,6 +690,8 @@ function spawnNext() {
         sprite.innerHTML = `<div class="animation-image">${id}</div>`;
     }
     sprite.style.cssText = `position:fixed;width:600px;height:600px;left:${start.x}px;top:${start.y}px;transform:translate(-50%,-50%)`;
+    sprite.dataset.lat = inv.obf_lat;
+    sprite.dataset.lng = inv.obf_lng;
     sprite.style.setProperty('--start-x', start.x + 'px');
     sprite.style.setProperty('--start-y', start.y + 'px');
     sprite.style.setProperty('--end-x', end.x + 'px');
@@ -712,6 +714,35 @@ function spawnNext() {
     }, animationState.animationSpeed + 200);
 }
 
+function updateAnimationEndpoints() {
+    document.querySelectorAll('#animationOverlay .animation-card').forEach(sprite => {
+        const lat = parseFloat(sprite.dataset.lat);
+        const lng = parseFloat(sprite.dataset.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
+        const pt = map.latLngToContainerPoint([lat, lng]);
+        sprite.style.setProperty('--end-x', pt.x + 'px');
+        sprite.style.setProperty('--end-y', pt.y + 'px');
+    });
+}
+
+function onZoomAnim(e) {
+    // Update endpoints to target zoom positions so sprites track during zoom
+    const halfSize = map.getSize().divideBy(2);
+    const centerProjected = map.project(e.center, e.zoom);
+    document.querySelectorAll('#animationOverlay .animation-card').forEach(sprite => {
+        const lat = parseFloat(sprite.dataset.lat);
+        const lng = parseFloat(sprite.dataset.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
+        const pt = map.project([lat, lng], e.zoom).subtract(centerProjected).add(halfSize);
+        sprite.style.setProperty('--end-x', pt.x + 'px');
+        sprite.style.setProperty('--end-y', pt.y + 'px');
+    });
+}
+
+function onZoomEnd() {
+    updateAnimationEndpoints();
+}
+
 function startAnimation(list, mode) {
     animationState.isPlaying = true;
     animationState.animationList = list;
@@ -723,6 +754,9 @@ function startAnimation(list, mode) {
     animationState.lastLng = null;
     toggleMarkersVisibility(true);
     document.getElementById('animationOverlay').classList.add('active');
+    map.on('move', updateAnimationEndpoints);
+    map.on('zoomanim', onZoomAnim);
+    map.on('zoomend', onZoomEnd);
 
     spawnNext();
     animationState.spawnerTimer = setInterval(spawnNext, animationState.spawnInterval);
@@ -730,6 +764,9 @@ function startAnimation(list, mode) {
 
 function finishAnimation() {
     animationState.isPlaying = false;
+    map.off('move', updateAnimationEndpoints);
+    map.off('zoomanim', onZoomAnim);
+    map.off('zoomend', onZoomEnd);
     toggleMarkersVisibility(false);
     document.getElementById('animationOverlay').classList.remove('active');
 }
@@ -737,6 +774,9 @@ function finishAnimation() {
 function stopAnimation() {
     animationState.isPlaying = false;
     clearInterval(animationState.spawnerTimer);
+    map.off('move', updateAnimationEndpoints);
+    map.off('zoomanim', onZoomAnim);
+    map.off('zoomend', onZoomEnd);
     document.querySelectorAll('#animationOverlay .animation-card').forEach(el => el.remove());
     clearRedSquares();
     toggleMarkersVisibility(false);
