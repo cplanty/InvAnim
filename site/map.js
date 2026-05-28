@@ -535,7 +535,8 @@ let animationState = {
     cumulatedDistance: 0,   // km
     lastLat: null,
     lastLng: null,
-    cumulatedPoints: 0
+    cumulatedPoints: 0,
+    seenCities: null,      // Set of city prefixes seen so far (for city bonus)
 };
 
 // Haversine distance in km between two lat/lng points
@@ -547,6 +548,12 @@ function haversineKm(lat1, lng1, lat2, lng2) {
         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
         Math.sin(dLng/2) * Math.sin(dLng/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function getCityPrefix(id) {
+    // Extract city prefix: PA_1234 → PA, SPACE2ISS → SPACE2ISS, FTBL_01 → FTBL
+    const match = id.match(/^(.+?)_\d+$/);
+    return match ? match[1] : id;
 }
 
 function updateStatsOverlay(id, inv) {
@@ -563,7 +570,15 @@ function updateStatsOverlay(id, inv) {
     animationState.lastLat = inv.obf_lat;
     animationState.lastLng = inv.obf_lng;
 
+    // City bonus: +100 for each new city prefix
+    const cityPrefix = getCityPrefix(id);
+    if (!animationState.seenCities.has(cityPrefix)) {
+        animationState.seenCities.add(cityPrefix);
+        animationState.cumulatedPoints += 100;
+    }
+
     const count = animationState.nextIndex;
+    const cityCount = animationState.seenCities.size;
     let html = `${id} · ${Math.round(animationState.cumulatedDistance)} km · #${count}`;
 
     // Points and date from gallery data ('my' mode)
@@ -572,8 +587,8 @@ function updateStatsOverlay(id, inv) {
         if (entry) {
             if (entry.point) {
                 animationState.cumulatedPoints += entry.point;
-                html += ` · ${animationState.cumulatedPoints} pts`;
             }
+            html += ` · ${animationState.cumulatedPoints} pts · ${cityCount} 🏙️`;
             if (entry.date_flash) {
                 html += ` · ${entry.date_flash}`;
             }
@@ -586,8 +601,8 @@ function updateStatsOverlay(id, inv) {
         if (entry) {
             if (entry.points) {
                 animationState.cumulatedPoints += entry.points;
-                html += ` · ${animationState.cumulatedPoints} pts`;
             }
+            html += ` · ${animationState.cumulatedPoints} pts · ${cityCount} 🏙️`;
             if (entry.date_pos) {
                 html += ` · ${entry.date_pos}`;
             }
@@ -756,6 +771,7 @@ function startAnimation(list, mode) {
     animationState.mode = mode || 'pa';
     animationState.cumulatedDistance = 0;
     animationState.cumulatedPoints = 0;
+    animationState.seenCities = new Set();
     animationState.lastLat = null;
     animationState.lastLng = null;
     toggleMarkersVisibility(true);
@@ -773,7 +789,7 @@ function finishAnimation() {
     map.off('move', updateAnimationEndpoints);
     map.off('zoomanim', onZoomAnim);
     map.off('zoomend', onZoomEnd);
-    toggleMarkersVisibility(false);
+    // Keep sprite markers visible, keep original markers hidden
     document.getElementById('animationOverlay').classList.remove('active');
 }
 
@@ -784,9 +800,22 @@ function stopAnimation() {
     map.off('zoomanim', onZoomAnim);
     map.off('zoomend', onZoomEnd);
     document.querySelectorAll('#animationOverlay .animation-card').forEach(el => el.remove());
+    // Keep sprite markers visible, keep original markers hidden
+    document.getElementById('animationOverlay').classList.remove('active');
+}
+
+function restoreDefaultView() {
+    if (animationState.isPlaying) {
+        animationState.isPlaying = false;
+        clearInterval(animationState.spawnerTimer);
+        map.off('move', updateAnimationEndpoints);
+        map.off('zoomanim', onZoomAnim);
+        map.off('zoomend', onZoomEnd);
+        document.querySelectorAll('#animationOverlay .animation-card').forEach(el => el.remove());
+        document.getElementById('animationOverlay').classList.remove('active');
+    }
     clearRedSquares();
     toggleMarkersVisibility(false);
-    document.getElementById('animationOverlay').classList.remove('active');
     const stats = document.getElementById('animationStats');
     if (stats) stats.style.display = 'none';
 }
@@ -820,6 +849,11 @@ function getAllList() {
         .sort((a, b) => a[1].date_pos.localeCompare(b[1].date_pos))
         .map(([id]) => id);
 }
+
+document.getElementById('showDefaultView').addEventListener('click', function(e) {
+    e.preventDefault();
+    restoreDefaultView();
+});
 
 document.getElementById('startAnimation').addEventListener('click', function(e) {
     e.preventDefault();
