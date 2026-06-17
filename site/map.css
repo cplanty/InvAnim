@@ -214,3 +214,37 @@ body {
     font-weight: bold;
     font-family: monospace;
 }
+
+.city-bonus-banner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    z-index: 10001;
+    background: rgba(0, 0, 0, 0.85);
+    color: #ffd700;
+    padding: 18px 40px;
+    border-radius: 8px;
+    font-size: 28px;
+    font-weight: bold;
+    font-family: 'Press Start 2P', 'Courier New', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0 #b8860b;
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    text-align: center;
+}
+
+.city-bonus-banner.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.city-bonus-name {
+    font-size: 36px;
+    margin-bottom: 8px;
+    color: #fff;
+    text-shadow: 2px 2px 0 #555;
+}

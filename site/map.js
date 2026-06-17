@@ -523,8 +523,8 @@ let animationState = {
     nextIndex: 0,
     startIndex: 0,         // start animation at this index (0 = first)
     animationList: [],     // ordered list of invader IDs to animate
-    animationSpeed: 1500,  // ms per sprite animation
-    spawnInterval: 50,    // ms between spawns (controls parallelism)
+    animationSpeed: 3000,  // ms per sprite animation
+    spawnInterval: 100,    // ms between spawns (controls parallelism)
     spawnerTimer: null,
     redSquares: [],
     angleStep: 30,
@@ -537,6 +537,22 @@ let animationState = {
     lastLng: null,
     cumulatedPoints: 0,
     seenCities: null,      // Set of city prefixes seen so far (for city bonus)
+    lastCity: null,        // last city prefix (to detect any city switch)
+    autoPanOnCityChange: true,  // fly map to new/different city when prefix changes
+    cityZoomLevels: {
+        // Computed from geographic spread of invaders per city
+        'PA': 12, 'LA': 11, 'NY': 12, 'LDN': 11, 'HK': 12, 'TK': 12,
+        'MARS': 12, 'ROM': 11, 'MIA': 11, 'BAB': 12, 'DJBA': 11,
+        'FTBL': 11, 'CAZ': 9, 'RA': 11, 'REUN': 11, 'CLR': 12,
+        'KLN': 12, 'BGK': 11, 'BRL': 12, 'MPL': 11, 'LBR': 10,
+        'BTA': 12, 'PRT': 12, 'FKF': 12, 'MRAK': 11, 'MBSA': 11,
+        'TLS': 10, 'CAPF': 13, 'GRN': 13, 'SP': 13, 'POTI': 13,
+        'WN': 13, 'MUN': 13, 'SL': 13, 'DJN': 13, 'MLB': 13,
+        'MEN': 13, 'MLGA': 13, 'FAO': 13, 'GRU': 12, 'CCU': 12,
+        'LIL': 11,
+    },
+    autoPanZoomDefault: 14,
+    resumeTimeout: null,   // pending resume timer (to cancel on new city change)
 };
 
 // Haversine distance in km between two lat/lng points
@@ -590,7 +606,7 @@ function updateStatsOverlay(id, inv) {
             }
             html += ` · ${animationState.cumulatedPoints} pts · ${cityCount} 🏙️`;
             if (entry.date_flash) {
-                html += ` · ${entry.date_flash}`;
+                html += ` · ${entry.date_flash.substring(0, 10)}`;
             }
         }
     }
@@ -613,12 +629,24 @@ function updateStatsOverlay(id, inv) {
     overlay.style.display = 'block';
 }
 
+function showCityBonusBanner(cityPrefix) {
+    const banner = document.createElement('div');
+    banner.className = 'city-bonus-banner';
+    banner.innerHTML = `<div class="city-bonus-name">${cityPrefix}</div>BONUS NEW CITY +100 PTS`;
+    document.body.appendChild(banner);
+    requestAnimationFrame(() => banner.classList.add('visible'));
+    setTimeout(() => {
+        banner.classList.remove('visible');
+        setTimeout(() => banner.remove(), 500);
+    }, 2500);
+}
+
 function getCirclePosition(angleDeg) {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
     // 1.5× half-viewport so sprites spawn off-screen
-    const rx = cx * 1.8;
-    const ry = cy * 1.8;
+    const rx = cx * 1.5;
+    const ry = cy * 1.5;
     const rad = angleDeg * (Math.PI / 180);
     return {
         x: cx + rx * Math.cos(rad),
@@ -682,14 +710,48 @@ function spawnNext() {
         return;
     }
 
-    const idx = animationState.nextIndex++;
+    // Peek at next invader without consuming
+    const idx = animationState.nextIndex;
     const id = animationState.animationList[idx];
     const inv = invaders[id];
     // Use default coords from extraData if invader not in invaders.json
     const extraEntry = animationState.extraData && animationState.extraData[id];
     const lat = inv ? inv.obf_lat : (extraEntry && extraEntry.default_lat);
     const lng = inv ? inv.obf_lng : (extraEntry && extraEntry.default_lng);
-    if (lat == null || lng == null) return; // skip invaders with no coords at all
+    if (lat == null || lng == null) { animationState.nextIndex++; return; }
+
+    // Auto-pan when city prefix changes (new or returning)
+    if (animationState.autoPanOnCityChange) {
+        const prefix = getCityPrefix(id);
+        if (prefix !== animationState.lastCity) {
+            const zoom = animationState.cityZoomLevels[prefix] || animationState.autoPanZoomDefault;
+            const isNewCity = !animationState.seenCities.has(prefix);
+            // Cancel any pending resume from a previous city change
+            clearTimeout(animationState.resumeTimeout);
+            // Pause spawning, wait for last sprites to land, then fly
+            clearInterval(animationState.spawnerTimer);
+            const settleDelay = 2500;
+            setTimeout(() => {
+                if (!animationState.isPlaying) return;
+                map.flyTo([lat, lng], zoom, { duration: 3 });
+                if (isNewCity) {
+                    showCityBonusBanner(prefix);
+                }
+            }, settleDelay);
+            animationState.lastCity = prefix;
+            // Resume spawning before fly ends so sprites are in transit when map settles
+            const flyDuration = isNewCity ? 3200 : 2200;
+            animationState.resumeTimeout = setTimeout(() => {
+                if (animationState.isPlaying) {
+                    animationState.spawnerTimer = setInterval(spawnNext, animationState.spawnInterval);
+                }
+            }, settleDelay + flyDuration);
+            return;
+        }
+    }
+
+    // Consume the index
+    animationState.nextIndex++;
 
     updateStatsOverlay(id, inv || { obf_lat: lat, obf_lng: lng });
 
@@ -722,8 +784,8 @@ function spawnNext() {
 
     requestAnimationFrame(() => sprite.classList.add('shrinking'));
 
-    // Place mini sprite marker near end of animation
-    setTimeout(() => createSpriteMarker(lat, lng, id), animationState.animationSpeed * 0.75);
+    // Place mini sprite marker when animation reaches destination
+    setTimeout(() => createSpriteMarker(lat, lng, id), animationState.animationSpeed * 0.95);
 
     // Self-destruct after animation, check if done
     setTimeout(() => {
@@ -772,6 +834,8 @@ function startAnimation(list, mode) {
     animationState.cumulatedDistance = 0;
     animationState.cumulatedPoints = 0;
     animationState.seenCities = new Set();
+    animationState.lastCity = null;
+    animationState.resumeTimeout = null;
     animationState.lastLat = null;
     animationState.lastLng = null;
     toggleMarkersVisibility(true);
@@ -781,7 +845,10 @@ function startAnimation(list, mode) {
     map.on('zoomend', onZoomEnd);
 
     spawnNext();
-    animationState.spawnerTimer = setInterval(spawnNext, animationState.spawnInterval);
+    // Only start interval if spawnNext didn't trigger a city-change pause
+    if (!animationState.resumeTimeout) {
+        animationState.spawnerTimer = setInterval(spawnNext, animationState.spawnInterval);
+    }
 }
 
 function finishAnimation() {
@@ -796,6 +863,8 @@ function finishAnimation() {
 function stopAnimation() {
     animationState.isPlaying = false;
     clearInterval(animationState.spawnerTimer);
+    clearTimeout(animationState.resumeTimeout);
+    animationState.resumeTimeout = null;
     map.off('move', updateAnimationEndpoints);
     map.off('zoomanim', onZoomAnim);
     map.off('zoomend', onZoomEnd);
@@ -808,6 +877,8 @@ function restoreDefaultView() {
     if (animationState.isPlaying) {
         animationState.isPlaying = false;
         clearInterval(animationState.spawnerTimer);
+        clearTimeout(animationState.resumeTimeout);
+        animationState.resumeTimeout = null;
         map.off('move', updateAnimationEndpoints);
         map.off('zoomanim', onZoomAnim);
         map.off('zoomend', onZoomEnd);
