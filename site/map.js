@@ -248,6 +248,21 @@ if (tileset === 'st') {
             "attribution": '\u0026copy; \u003ca href="https://www.openstreetmap.org/copyright"\u003eOpenStreetMap\u003c/a\u003e contributors',
         }
     );
+} else if (tileset === 'dark') {
+    tile_layer = L.tileLayer(
+        'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
+        { "attribution": '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/about/">OpenStreetMap</a>', "maxZoom": 18 }
+    );
+} else if (tileset === 'watercolor') {
+    tile_layer = L.tileLayer(
+        'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
+        { "attribution": '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://www.stamen.com/">Stamen Design</a>', "maxZoom": 16 }
+    );
+} else if (tileset === 'satellite') {
+    tile_layer = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { "attribution": '&copy; Esri, Maxar, Earthstar Geographics', "maxZoom": 18 }
+    );
 } else {
     tile_layer = L.tileLayer(
         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -292,7 +307,7 @@ if (targetInvaderId) {
     targetInvaderId = targetInvaderId.toUpperCase();
 }
 
-fetch('invaders.json?nocache=1')
+const invadersReady = fetch('invaders.json?nocache=1')
     .then(response => response.json())
     .then(data => {
         // Iterate over each item in the JSON array
@@ -315,6 +330,9 @@ fetch('invaders.json?nocache=1')
         
         // Initialize sprite atlases for all cities
         initializeAtlases();
+
+        // Precompute city centers (median lat/lng of all invaders per prefix)
+        computeCityCenters();
     })
     .catch(error => {
         console.error('Error loading JSON:', error);
@@ -498,11 +516,15 @@ document.getElementById('restoreFromAppButton').addEventListener('click', functi
         return;
     }
     statusSpan.innerHTML = `⚙️ syncing in progress`;
-    fetch(apiUrl)
-        .then(response => response.json())
-        .then(data => {
+    Promise.all([
+        fetch(apiUrl).then(response => response.json()),
+        invadersReady
+    ])
+        .then(([data]) => {
             const invaderIds = Object.keys(data.invaders);
-            statusSpan.innerHTML = `✅ ${invaderIds.length} mosaics marked as flashed`;
+            const stats = calculateGalleryStats(data.invaders);
+            statusSpan.innerHTML = `✅ ${invaderIds.length} mosaics marked as flashed<br>` +
+                `${stats.cityCount} cities · ${Math.round(stats.distanceKm).toLocaleString()} km point-to-point`;
             collectedIds = new Set(invaderIds)
             saveCollectedIds();
             refreshAll();
@@ -541,7 +563,7 @@ let animationState = {
     autoPanOnCityChange: true,  // fly map to new/different city when prefix changes
     cityZoomLevels: {
         // Computed from geographic spread of invaders per city
-        'PA': 12, 'LA': 11, 'NY': 12, 'LDN': 11, 'HK': 12, 'TK': 12,
+        'PA': 13, 'LA': 11, 'NY': 12, 'LDN': 11, 'HK': 12, 'TK': 12,
         'MARS': 12, 'ROM': 11, 'MIA': 11, 'BAB': 12, 'DJBA': 11,
         'FTBL': 11, 'CAZ': 9, 'RA': 11, 'REUN': 11, 'CLR': 12,
         'KLN': 12, 'BGK': 11, 'BRL': 12, 'MPL': 11, 'LBR': 10,
@@ -553,7 +575,29 @@ let animationState = {
     },
     autoPanZoomDefault: 14,
     resumeTimeout: null,   // pending resume timer (to cancel on new city change)
+    cityCenters: {},       // precomputed {prefix: {lat, lng}} median centers
 };
+
+// Precompute median center for each city prefix (robust to outliers)
+function computeCityCenters() {
+    const groups = {};
+    Object.values(invaders).forEach(inv => {
+        if (!inv.obf_lat || !inv.obf_lng) return;
+        const prefix = getCityPrefix(inv.id || '');
+        if (!groups[prefix]) groups[prefix] = { lats: [], lngs: [] };
+        groups[prefix].lats.push(inv.obf_lat);
+        groups[prefix].lngs.push(inv.obf_lng);
+    });
+    Object.entries(groups).forEach(([prefix, pts]) => {
+        pts.lats.sort((a, b) => a - b);
+        pts.lngs.sort((a, b) => a - b);
+        const mid = Math.floor(pts.lats.length / 2);
+        animationState.cityCenters[prefix] = {
+            lat: pts.lats[mid],
+            lng: pts.lngs[mid]
+        };
+    });
+}
 
 // Haversine distance in km between two lat/lng points
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -570,6 +614,33 @@ function getCityPrefix(id) {
     // Extract city prefix: PA_1234 → PA, SPACE2ISS → SPACE2ISS, FTBL_01 → FTBL
     const match = id.match(/^(.+?)_\d+$/);
     return match ? match[1] : id;
+}
+
+function calculateGalleryStats(galleryInvaders) {
+    const entries = Object.entries(galleryInvaders);
+    const cities = new Set(entries.map(([id]) => getCityPrefix(id)));
+    const route = entries
+        .filter(([id]) => {
+            const invader = invaders[id];
+            return invader &&
+                Number.isFinite(invader.obf_lat) &&
+                Number.isFinite(invader.obf_lng);
+        })
+        .sort((a, b) =>
+            (a[1].date_flash || '').localeCompare(b[1].date_flash || '')
+        );
+
+    let distanceKm = 0;
+    for (let index = 1; index < route.length; index++) {
+        const previous = invaders[route[index - 1][0]];
+        const current = invaders[route[index][0]];
+        distanceKm += haversineKm(
+            previous.obf_lat, previous.obf_lng,
+            current.obf_lat, current.obf_lng
+        );
+    }
+
+    return { cityCount: cities.size, distanceKm };
 }
 
 function updateStatsOverlay(id, inv) {
@@ -629,10 +700,36 @@ function updateStatsOverlay(id, inv) {
     overlay.style.display = 'block';
 }
 
+const CITY_NAMES = {
+    'AIX': 'Aix-en-Provence', 'AMI': 'Amiens', 'AMS': 'Amsterdam', 'ANVR': 'Anvers',
+    'ANZR': 'Anzère', 'AVI': 'Avignon', 'BAB': 'Biarritz-Anglet-Bayonne', 'BBO': 'Bilbao',
+    'BGK': 'Bangkok', 'BRC': 'Barcelona', 'BRL': 'Berlin', 'BRN': 'Bern', 'BSL': 'Basel',
+    'BT': 'Bhutan', 'BTA': 'Bastia', 'BXL': 'Bruxelles', 'CAPF': 'Cap Ferret',
+    'CAZ': 'Côte d\'Azur', 'CCU': 'Cancún', 'CHAR': 'Charleroi', 'CLR': 'Clermont-Ferrand',
+    'CON': 'Contis-Les-Bains', 'DHK': 'Dhaka', 'DIJ': 'Dijon', 'DJBA': 'Djerba',
+    'DJN': 'Daejeon', 'ELT': 'Eilat', 'FAO': 'Faro', 'FKF': 'Frankfurt',
+    'FRQ': 'Forcalquier', 'FTBL': 'Fontainebleau', 'GNV': 'Genève', 'GRN': 'Grenoble',
+    'GRTI': 'Grumeti', 'GRU': 'Grude', 'HALM': 'Halmstad', 'HK': 'Hong Kong',
+    'IST': 'Istanbul', 'KAT': 'Katmandou', 'KLN': 'Köln', 'LA': 'Los Angeles',
+    'LBR': 'Luberon', 'LCT': 'La Ciotat', 'LDN': 'London', 'LIL': 'Lille',
+    'LJU': 'Ljubljana', 'LSN': 'Lausanne', 'LY': 'Lyon', 'MAN': 'Manchester',
+    'MARS': 'Marseille', 'MBSA': 'Mombasa', 'MEN': 'Menorca', 'MIA': 'Miami',
+    'MLB': 'Melbourne', 'MLGA': 'Málaga', 'MPL': 'Montpellier', 'MRAK': 'Marrakech',
+    'MTB': 'Montauban', 'MUN': 'Munich', 'NA': 'Nantes', 'NCL': 'Newcastle',
+    'NIM': 'Nîmes', 'NOO': 'Noordwijk', 'NY': 'New York', 'ORLN': 'Orléans',
+    'PA': 'Paris', 'PAU': 'Pau', 'POTI': 'Potosí', 'PRP': 'Perpignan',
+    'PRT': 'Perth', 'RA': 'Ravenna', 'RBA': 'Rabat', 'RDU': 'Redu',
+    'REUN': 'La Réunion', 'RN': 'Rennes', 'ROM': 'Roma', 'RTD': 'Rotterdam',
+    'SD': 'San Diego', 'SL': 'Seoul', 'SP': 'São Paulo', 'SPACE': 'Space',
+    'SPACE2ISS': 'ISS', 'TK': 'Tokyo', 'TLS': 'Toulouse', 'VLMO': 'Valmorel',
+    'VRN': 'Varanasi', 'VRS': 'Versailles', 'VSB': 'Visby', 'WN': 'Vienna',
+};
+
 function showCityBonusBanner(cityPrefix) {
+    const cityName = CITY_NAMES[cityPrefix] || cityPrefix;
     const banner = document.createElement('div');
     banner.className = 'city-bonus-banner';
-    banner.innerHTML = `<div class="city-bonus-name">${cityPrefix}</div>BONUS NEW CITY +100 PTS`;
+    banner.innerHTML = `<div class="city-bonus-name">${cityPrefix} – ${cityName}</div>BONUS NEW CITY +100 PTS`;
     document.body.appendChild(banner);
     requestAnimationFrame(() => banner.classList.add('visible'));
     setTimeout(() => {
@@ -645,8 +742,8 @@ function getCirclePosition(angleDeg) {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
     // 1.5× half-viewport so sprites spawn off-screen
-    const rx = cx * 1.5;
-    const ry = cy * 1.5;
+    const rx = cx * 1.75;
+    const ry = cy * 1.75;
     const rad = angleDeg * (Math.PI / 180);
     return {
         x: cx + rx * Math.cos(rad),
@@ -726,20 +823,21 @@ function spawnNext() {
         if (prefix !== animationState.lastCity) {
             const zoom = animationState.cityZoomLevels[prefix] || animationState.autoPanZoomDefault;
             const isNewCity = !animationState.seenCities.has(prefix);
-            // Cancel any pending resume from a previous city change
+
+            // Pause spawning, let the map settle, fly to the new city, then resume
             clearTimeout(animationState.resumeTimeout);
-            // Pause spawning, wait for last sprites to land, then fly
             clearInterval(animationState.spawnerTimer);
             const settleDelay = 2500;
+            // Use precomputed city center
+            const cityCenter = animationState.cityCenters[prefix] || { lat, lng };
             setTimeout(() => {
                 if (!animationState.isPlaying) return;
-                map.flyTo([lat, lng], zoom, { duration: 3 });
+                map.flyTo([cityCenter.lat, cityCenter.lng], zoom, { duration: 3 });
                 if (isNewCity) {
                     showCityBonusBanner(prefix);
                 }
             }, settleDelay);
             animationState.lastCity = prefix;
-            // Resume spawning before fly ends so sprites are in transit when map settles
             const flyDuration = isNewCity ? 3200 : 2200;
             animationState.resumeTimeout = setTimeout(() => {
                 if (animationState.isPlaying) {
@@ -774,6 +872,8 @@ function spawnNext() {
     sprite.style.cssText = `position:fixed;width:600px;height:600px;left:${start.x}px;top:${start.y}px;transform:translate(-50%,-50%)`;
     sprite.dataset.lat = lat;
     sprite.dataset.lng = lng;
+    sprite.dataset.startX = start.x;
+    sprite.dataset.startY = start.y;
     sprite.style.setProperty('--anim-duration', animationState.animationSpeed + 'ms');
     sprite.style.setProperty('--start-x', start.x + 'px');
     sprite.style.setProperty('--start-y', start.y + 'px');
