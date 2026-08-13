@@ -1,0 +1,30 @@
+# Cloudflare Pages headers.
+#
+# NOTE: asset filenames are not content-hashed, so "immutable" is deliberately
+# avoided — a returning browser must be able to pick up rebuilt atlases.
+
+/assets/*
+  Cache-Control: public, max-age=604800
+
+/icons/*
+  Cache-Control: public, max-age=604800
+
+/invaders.json
+  Cache-Control: no-cache
+
+/invaders_extra.json
+  Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
