@@ -148,7 +148,13 @@ function refreshMarker(id) {
     }
     popupContent += `</p>`;
     popupContent += `<a href="${invader.instagramUrl}" target="_blank"><button>📷 Peek at Instagram</button></a></div>`;
-    invader.marker.bindPopup(`<div>` + popupContent + `</div>`);
+    const popupHtml = `<div>` + popupContent + `</div>`;
+    // setPopupContent updates in place, so an already open popup stays open.
+    if (invader.marker.getPopup()) {
+        invader.marker.setPopupContent(popupHtml);
+    } else {
+        invader.marker.bindPopup(popupHtml);
+    }
 
     // Visibility.
     var curZoom = map.getZoom();
@@ -542,6 +548,7 @@ document.getElementById('restoreFromAppButton').addEventListener('click', functi
 // Animation - spawner-based, supports PA sequence and user's flashed mosaics
 let animationState = {
     isPlaying: false,
+    runId: 0,              // bumped on start/stop to void pending sprite timers
     nextIndex: 0,
     startIndex: 0,         // start animation at this index (0 = first)
     animationList: [],     // ordered list of invader IDs to animate
@@ -756,6 +763,9 @@ function initializeAtlases() {
         .then(r => r.json())
         .then(data => {
             animationState.atlases = data.sprites;
+            // Popups were built before the metadata arrived, so they hold no
+            // sprite yet; rebuild them now that the atlas lookup is available.
+            refreshAll();
             // Preload all atlas AVIF images for instant rendering
             data.atlasFiles.forEach(name => {
                 const img = new Image();
@@ -884,12 +894,18 @@ function spawnNext() {
 
     requestAnimationFrame(() => sprite.classList.add('shrinking'));
 
+    const runId = animationState.runId;
+
     // Place mini sprite marker when animation reaches destination
-    setTimeout(() => createSpriteMarker(lat, lng, id), animationState.animationSpeed * 0.95);
+    setTimeout(() => {
+        if (animationState.runId !== runId) return;
+        createSpriteMarker(lat, lng, id);
+    }, animationState.animationSpeed * 0.95);
 
     // Self-destruct after animation, check if done
     setTimeout(() => {
         sprite.remove();
+        if (animationState.runId !== runId) return;
         if (animationState.nextIndex >= animationState.animationList.length &&
             !document.querySelector('#animationOverlay .animation-card')) {
             finishAnimation();
@@ -928,6 +944,7 @@ function onZoomEnd() {
 
 function startAnimation(list, mode) {
     animationState.isPlaying = true;
+    animationState.runId++;
     animationState.animationList = list;
     animationState.nextIndex = animationState.startIndex;
     animationState.mode = mode || 'pa';
@@ -962,6 +979,7 @@ function finishAnimation() {
 
 function stopAnimation() {
     animationState.isPlaying = false;
+    animationState.runId++;
     clearInterval(animationState.spawnerTimer);
     clearTimeout(animationState.resumeTimeout);
     animationState.resumeTimeout = null;
@@ -976,6 +994,7 @@ function stopAnimation() {
 function restoreDefaultView() {
     if (animationState.isPlaying) {
         animationState.isPlaying = false;
+        animationState.runId++;
         clearInterval(animationState.spawnerTimer);
         clearTimeout(animationState.resumeTimeout);
         animationState.resumeTimeout = null;
