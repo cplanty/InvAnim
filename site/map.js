@@ -501,6 +501,23 @@ tilesetSelect.addEventListener('change', function () {
     localStorage.setItem('tileset', this.value);
 });
 
+const animFromInput = document.getElementById('animFromDate');
+const animToInput = document.getElementById('animToDate');
+animFromInput.value = localStorage.getItem('animFrom') || '';
+animToInput.value = localStorage.getItem('animTo') || '';
+animFromInput.addEventListener('change', function () {
+    localStorage.setItem('animFrom', this.value);
+});
+animToInput.addEventListener('change', function () {
+    localStorage.setItem('animTo', this.value);
+});
+document.getElementById('animDateClear').addEventListener('click', function () {
+    animFromInput.value = '';
+    animToInput.value = '';
+    localStorage.removeItem('animFrom');
+    localStorage.removeItem('animTo');
+});
+
 document.getElementById('hideCollectedCheckbox').addEventListener('change', function () {
     hideCollected = this.checked;
     saveHideSettingsState();
@@ -865,13 +882,28 @@ function getInvaderPosition(id) {
 }
 
 // Date an invader is sorted by in the current mode, as YYYY-MM-DD.
-function getEntryDate(id) {
-    if (animationState.mode === 'my' && animationState.galleryData) {
+function getEntryDate(id, mode) {
+    mode = mode || animationState.mode;
+    if (mode === 'my' && animationState.galleryData) {
         const entry = animationState.galleryData.invaders[id];
         return entry && entry.date_flash ? entry.date_flash.substring(0, 10) : null;
     }
     const entry = animationState.extraData && animationState.extraData[id];
     return entry && entry.date_pos ? entry.date_pos.substring(0, 10) : null;
+}
+
+// Keep only the invaders inside the date range set in Settings, if any.
+function applyDateRange(list, mode) {
+    const from = localStorage.getItem('animFrom') || '';
+    const to = localStorage.getItem('animTo') || '';
+    if (!from && !to) return list;
+    return list.filter(id => {
+        const date = getEntryDate(id, mode);
+        if (!date) return false;
+        if (from && date < from) return false;
+        if (to && date > to) return false;
+        return true;
+    });
 }
 
 function progressLabelFor(index) {
@@ -1157,27 +1189,30 @@ function restoreDefaultView() {
 
 // Build PA list sorted by number
 function getPAList() {
-    return Object.keys(invaders)
+    const list = Object.keys(invaders)
         .filter(id => id.startsWith('PA_'))
         .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
+    return applyDateRange(list, 'pa');
 }
 
 // Build user's flashed list sorted by date_flash
 function getMyFlashedList() {
     if (!animationState.galleryData) return null;
-    return Object.entries(animationState.galleryData.invaders)
+    const list = Object.entries(animationState.galleryData.invaders)
         .filter(([id]) => invaders[id]) // only invaders we have on the map
         .sort((a, b) => a[1].date_flash.localeCompare(b[1].date_flash))
         .map(([id]) => id);
+    return applyDateRange(list, 'my');
 }
 
 // Build all-invaders list sorted by date_pos from invaders_extra.json
 function getAllList() {
     if (!animationState.extraData) return null;
-    return Object.entries(animationState.extraData)
+    const list = Object.entries(animationState.extraData)
         .filter(([id, data]) => invaders[id] || (data.default_lat && data.default_lng))
         .sort((a, b) => a[1].date_pos.localeCompare(b[1].date_pos))
         .map(([id]) => id);
+    return applyDateRange(list, 'all');
 }
 
 const progressSlider = document.getElementById('progressSlider');
@@ -1208,7 +1243,12 @@ function beginAnimationRequest(mode) {
 document.getElementById('startAnimation').addEventListener('click', function(e) {
     e.preventDefault();
     if (!beginAnimationRequest('pa')) return;
-    startAnimation(getPAList(), 'pa');
+    const list = getPAList();
+    if (!list.length) {
+        alert('No Paris mosaics in the selected date range.');
+        return;
+    }
+    startAnimation(list, 'pa');
 });
 
 document.getElementById('startMyAnimation').addEventListener('click', function(e) {
@@ -1226,6 +1266,8 @@ document.getElementById('startMyAnimation').addEventListener('click', function(e
         const list = getMyFlashedList();
         if (list && list.length > 0) {
             startAnimation(list, 'my');
+        } else {
+            alert('No flashed mosaics in the selected date range.');
         }
         return;
     }
@@ -1240,7 +1282,7 @@ document.getElementById('startMyAnimation').addEventListener('click', function(e
                 startAnimation(list, 'my');
                 console.log(`Animate My: ${list.length} flashed mosaics, from ${data.invaders[list[0]].date_flash} to ${data.invaders[list[list.length-1]].date_flash}`);
             } else {
-                alert('No flashed mosaics found for this UID.');
+                alert('No flashed mosaics found for this UID, or none in the selected date range.');
             }
         })
         .catch(() => alert('Error fetching gallery data. Check your UID in Settings.'));
@@ -1255,6 +1297,8 @@ document.getElementById('startAllAnimation').addEventListener('click', function(
         const list = getAllList();
         if (list && list.length > 0) {
             startAnimation(list, 'all');
+        } else {
+            alert('No invaders in the selected date range.');
         }
         return;
     }
@@ -1268,7 +1312,7 @@ document.getElementById('startAllAnimation').addEventListener('click', function(
                 startAnimation(list, 'all');
                 console.log(`Animate All: ${list.length} invaders, from ${data[list[0]].date_pos} to ${data[list[list.length-1]].date_pos}`);
             } else {
-                alert('No invaders with placement dates found.');
+                alert('No invaders with placement dates in the selected date range.');
             }
         })
         .catch(() => alert('Error loading invaders_extra.json.'));
