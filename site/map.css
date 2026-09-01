@@ -248,6 +248,11 @@ body {
     white-space: nowrap;
 }
 
+body.animation-paused #progressLabel::after {
+    content: ' · paused';
+    color: #ffcc00;
+}
+
 
 /* Lift the other bottom widgets above the scrubber */
 body.progress-visible #infoBox {

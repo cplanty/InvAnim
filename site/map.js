@@ -624,6 +624,7 @@ let animationState = {
     cumulatedPoints: 0,
     seenCities: null,      // Set of city prefixes seen so far (for city bonus)
     priorCities: null,     // Set of city prefixes explored before the date range
+    isPaused: false,       // true when a run is halted but can be resumed
     lastCity: null,        // last city prefix (to detect any city switch)
     autoPanOnCityChange: true,  // fly map to new/different city when prefix changes
     cityZoomLevels: {
@@ -948,12 +949,6 @@ function updateProgressBar() {
     document.body.classList.add('progress-visible');
 }
 
-function hideProgressBar() {
-    const bar = document.getElementById('animationProgress');
-    if (bar) bar.classList.remove('visible');
-    document.body.classList.remove('progress-visible');
-}
-
 // Jump the animation to `target`, rebuilding the markers and the running totals
 // as if it had played up to that point.
 function seekToIndex(target) {
@@ -1074,6 +1069,7 @@ function spawnNext() {
     sprite.style.cssText = `position:fixed;width:600px;height:600px;left:${start.x}px;top:${start.y}px;transform:translate(-50%,-50%)`;
     sprite.dataset.lat = lat;
     sprite.dataset.lng = lng;
+    sprite.dataset.id = id;
     sprite.dataset.startX = start.x;
     sprite.dataset.startY = start.y;
     sprite.style.setProperty('--anim-duration', animationState.animationSpeed + 'ms');
@@ -1130,12 +1126,21 @@ function onZoomAnim(e) {
     });
 }
 
-function onZoomEnd() {
+function onAnimationZoomEnd() {
     updateAnimationEndpoints();
+}
+
+// Attach/detach the handlers that keep sprites glued to the map while it moves.
+function bindAnimationMapEvents(on) {
+    const method = on ? 'on' : 'off';
+    map[method]('move', updateAnimationEndpoints);
+    map[method]('zoomanim', onZoomAnim);
+    map[method]('zoomend', onAnimationZoomEnd);
 }
 
 function startAnimation(list, mode) {
     animationState.isPlaying = true;
+    animationState.isPaused = false;
     animationState.runId++;
     animationState.animationList = list;
     animationState.nextIndex = animationState.startIndex;
@@ -1149,9 +1154,7 @@ function startAnimation(list, mode) {
     animationState.lastLng = null;
     toggleMarkersVisibility(true);
     document.getElementById('animationOverlay').classList.add('active');
-    map.on('move', updateAnimationEndpoints);
-    map.on('zoomanim', onZoomAnim);
-    map.on('zoomend', onZoomEnd);
+    bindAnimationMapEvents(true);
     updateProgressBar();
 
     spawnNext();
@@ -1163,45 +1166,59 @@ function startAnimation(list, mode) {
 
 function finishAnimation() {
     animationState.isPlaying = false;
-    map.off('move', updateAnimationEndpoints);
-    map.off('zoomanim', onZoomAnim);
-    map.off('zoomend', onZoomEnd);
+    bindAnimationMapEvents(false);
     // Keep sprite markers visible, keep original markers hidden
     document.getElementById('animationOverlay').classList.remove('active');
 }
 
 function stopAnimation() {
     animationState.isPlaying = false;
+    animationState.isPaused = false;
     animationState.runId++;
     clearInterval(animationState.spawnerTimer);
     clearTimeout(animationState.resumeTimeout);
     animationState.resumeTimeout = null;
-    map.off('move', updateAnimationEndpoints);
-    map.off('zoomanim', onZoomAnim);
-    map.off('zoomend', onZoomEnd);
+    bindAnimationMapEvents(false);
     document.querySelectorAll('#animationOverlay .animation-card').forEach(el => el.remove());
     // Keep sprite markers visible, keep original markers hidden
     document.getElementById('animationOverlay').classList.remove('active');
 }
 
-function restoreDefaultView() {
-    if (animationState.isPlaying) {
-        animationState.isPlaying = false;
-        animationState.runId++;
-        clearInterval(animationState.spawnerTimer);
-        clearTimeout(animationState.resumeTimeout);
-        animationState.resumeTimeout = null;
-        map.off('move', updateAnimationEndpoints);
-        map.off('zoomanim', onZoomAnim);
-        map.off('zoomend', onZoomEnd);
-        document.querySelectorAll('#animationOverlay .animation-card').forEach(el => el.remove());
-        document.getElementById('animationOverlay').classList.remove('active');
+// Halt the run where it stands. Sprites still in flight land immediately so the
+// map stays consistent with the progress counter.
+function pauseAnimation() {
+    if (!animationState.isPlaying) return;
+    animationState.isPlaying = false;
+    animationState.isPaused = true;
+    animationState.runId++;
+    clearInterval(animationState.spawnerTimer);
+    clearTimeout(animationState.resumeTimeout);
+    animationState.resumeTimeout = null;
+    bindAnimationMapEvents(false);
+    document.querySelectorAll('#animationOverlay .animation-card').forEach(sprite => {
+        const lat = parseFloat(sprite.dataset.lat);
+        const lng = parseFloat(sprite.dataset.lng);
+        if (sprite.dataset.id && !isNaN(lat) && !isNaN(lng)) {
+            createSpriteMarker(lat, lng, sprite.dataset.id);
+        }
+        sprite.remove();
+    });
+    document.getElementById('animationOverlay').classList.remove('active');
+    document.body.classList.add('animation-paused');
+}
+
+function resumeAnimation() {
+    if (!animationState.isPaused) return;
+    animationState.isPaused = false;
+    animationState.isPlaying = true;
+    animationState.lastCity = null;  // fly back to the city we stopped in
+    document.body.classList.remove('animation-paused');
+    document.getElementById('animationOverlay').classList.add('active');
+    bindAnimationMapEvents(true);
+    spawnNext();
+    if (!animationState.resumeTimeout) {
+        animationState.spawnerTimer = setInterval(spawnNext, animationState.spawnInterval);
     }
-    clearRedSquares();
-    toggleMarkersVisibility(false);
-    hideProgressBar();
-    const stats = document.getElementById('animationStats');
-    if (stats) stats.style.display = 'none';
 }
 
 // Build PA list sorted by number
@@ -1243,16 +1260,24 @@ progressSlider.addEventListener('change', function () {
     seekToIndex(parseInt(this.value, 10));
 });
 
-// Clicking the running animation returns to the plain map; clicking another one
-// switches to it. Returns false when the click was handled as a stop.
+// Clicking the animation that is already running pauses it, and clicking it once
+// more resumes where it left off. Clicking a different one switches to it.
+// Returns false when the click was handled as a pause or a resume.
 function beginAnimationRequest(mode) {
-    if (animationState.isPlaying) {
-        if (animationState.mode === mode) {
-            restoreDefaultView();
+    if (animationState.mode === mode) {
+        if (animationState.isPlaying) {
+            pauseAnimation();
             return false;
         }
+        if (animationState.isPaused) {
+            resumeAnimation();
+            return false;
+        }
+    }
+    if (animationState.isPlaying || animationState.isPaused) {
         stopAnimation();
     }
+    document.body.classList.remove('animation-paused');
     clearRedSquares();
     return true;
 }

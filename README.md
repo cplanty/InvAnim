@@ -48,8 +48,8 @@ Settings can also limit an animation to a **date range**, which is handy for
 replaying a single trip instead of the whole collection. It filters on placement
 date, or on flash date in **My** mode.
 
-Clicking the animation that is running returns to the plain map; clicking a
-different one switches to it.
+Clicking the animation that is running pauses it, and clicking it once more
+resumes from the same point; clicking a different one switches to it.
 
 ## Running locally
 
