@@ -16,7 +16,8 @@ Forked from and credited to the original Space Invader map viewer by
 ### Map
 - Interactive Leaflet map with marker clustering
 - Sprite artwork in popups, rendered from AVIF atlases
-- Multiple tilesets: OSM, Stadia, satellite, dark, watercolour, grayscale
+- Eight backgrounds — satellite (default), street, grey, dark, toner,
+  watercolour, topographic or none — chosen in Settings and remembered
 - Search a mosaic by ID; "locate me" control
 - Deep links: `?id=PA_1234`, and `#zoom=15&lat=48.86&lng=2.35`
 
@@ -31,12 +32,23 @@ position, with a live stats overlay (distance, points, city count, dates):
 
 | Mode | Order | Extra |
 |---|---|---|
-| **Animate PA** | Paris mosaics by number | — |
-| **Animate My** | your flashed mosaics by flash date | points, cities, flash date |
-| **Animate All** | every mosaic by historical placement date | placement date |
+| **InvAnim** | every mosaic by historical placement date | placement date |
+| **Paris** | Paris mosaics by number | — |
+| **My** | your flashed mosaics by flash date | points, cities, flash date |
 
 The map auto-pans between cities, with a "+100 PTS" bonus banner the first time
 each new city appears.
+
+A progress bar along the bottom shows how far the animation has got and the date
+it has reached. Drag it to jump anywhere in the sequence — the map is rebuilt to
+show exactly what had been placed at that point.
+
+Settings can also limit an animation to a **date range**, which is handy for
+replaying a single trip instead of the whole collection. It filters on placement
+date, or on flash date in **My** mode.
+
+Clicking the animation that is running returns to the plain map; clicking a
+different one switches to it.
 
 ## Running locally
 
@@ -50,13 +62,13 @@ python -m http.server 8000
 
 Then open <http://localhost:8000>.
 
-Example: <http://localhost:8000/?tileset=satellite&id=PA_01#zoom=17&lat=48.8583&lng=2.3477>
+Example: <http://localhost:8000/?tileset=dark&id=PA_01#zoom=17&lat=48.8583&lng=2.3477>
 
 ## URL parameters
 
 | Parameter | Values |
 |---|---|
-| `?tileset=` | `osm` (default), `st`, `dark`, `satellite`, `watercolor`, `grau`, `none` |
+| `?tileset=` | `satellite` (default), `osm`, `grayscale`, `dark`, `toner`, `watercolor`, `topo`, `none`. Overrides the Settings choice; the older `st` and `grau` keys still work. |
 | `?id=` | mosaic ID, e.g. `PA_1234` — centres the map and opens its popup |
 | `#zoom=&lat=&lng=` | initial view |
 

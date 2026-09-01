@@ -18,6 +18,8 @@ device only. It is never transmitted to us.
 | `collectedIds` | IDs of mosaics you marked as flashed | you mark a mosaic, or restore a backup |
 | `hideCollected` | display preference | you toggle it in Settings |
 | `hideDestroyed` | display preference | you toggle it in Settings |
+| `tileset` | chosen map background | you pick one in Settings |
+| `animFrom`, `animTo` | date range limiting the animations | you set them in Settings |
 | `uid` | your FlashInvaders user ID | only if you type one into Settings |
 
 Clearing your browser's site data erases all of it. Because it is local, it is
@@ -28,13 +30,13 @@ not synced between devices — use Settings to download a backup file.
 Loading the map necessarily contacts third parties, each of which will see your
 IP address and receives its own privacy policy:
 
-- **Map tile providers** — OpenStreetMap by default; Stadia Maps, Esri or BKG
-  if you select another tileset via `?tileset=`.
+- **Map tile providers** — Esri (satellite) by default; OpenStreetMap, Stadia
+  Maps or BKG if you pick another background in Settings or via `?tileset=`.
 - **CDNs** — jsDelivr, unpkg and cdnjs for Leaflet, Font Awesome and plugins.
 - **Google Fonts** — for the *Press Start 2P* display font.
 - **api.space-invaders.com** — **only** if you enter a `uid`. Your `uid` is
   sent to the official FlashInvaders gallery endpoint to retrieve your own
-  flashed list. This happens on "Restore from app" and on "Animate My".
+  flashed list. This happens on "Restore from app" and on "My".
 
 InvAnim never sends your `uid`, your collection, or your location anywhere
 else.

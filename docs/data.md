@@ -31,7 +31,7 @@ street without giving an exact position.
 
 ## `invaders_extra.json`
 
-A JSON object keyed by mosaic ID, used by the "Animate All" mode and the stats
+A JSON object keyed by mosaic ID, used by the "InvAnim" mode and the stats
 overlay.
 
 ```json
@@ -43,7 +43,7 @@ overlay.
 
 | Field | Meaning |
 |---|---|
-| `date_pos` | placement date, ISO 8601 — the sort order for "Animate All" |
+| `date_pos` | placement date, ISO 8601 — the sort order for "InvAnim" |
 | `points` | point value; `0` means unknown |
 | `default_lat` / `default_lng` | optional city-level fallback when no exact location exists |
 
