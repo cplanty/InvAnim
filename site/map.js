@@ -621,6 +621,7 @@ let animationState = {
         'LIL': 11,
     },
     autoPanZoomDefault: 14,
+    scrubbing: false,      // true while the progress slider is being dragged
     resumeTimeout: null,   // pending resume timer (to cancel on new city change)
     cityCenters: {},       // precomputed {prefix: {lat, lng}} median centers
 };
@@ -690,10 +691,7 @@ function calculateGalleryStats(galleryInvaders) {
     return { cityCount: cities.size, distanceKm };
 }
 
-function updateStatsOverlay(id, inv) {
-    const overlay = document.getElementById('animationStats');
-    if (!overlay) return;
-
+function accumulateStats(id, inv) {
     // Cumulated distance
     if (animationState.lastLat !== null) {
         animationState.cumulatedDistance += haversineKm(
@@ -743,7 +741,13 @@ function updateStatsOverlay(id, inv) {
         }
     }
 
-    overlay.textContent = html;
+    return html;
+}
+
+function updateStatsOverlay(id, inv) {
+    const overlay = document.getElementById('animationStats');
+    if (!overlay) return;
+    overlay.textContent = accumulateStats(id, inv);
     overlay.style.display = 'block';
 }
 
@@ -850,6 +854,105 @@ function clearRedSquares() {
     animationState.redSquares = [];
 }
 
+// Coordinates of an invader, falling back to the city default in extraData.
+function getInvaderPosition(id) {
+    const inv = invaders[id];
+    const extraEntry = animationState.extraData && animationState.extraData[id];
+    const lat = inv ? inv.obf_lat : (extraEntry && extraEntry.default_lat);
+    const lng = inv ? inv.obf_lng : (extraEntry && extraEntry.default_lng);
+    if (lat == null || lng == null) return null;
+    return { lat, lng };
+}
+
+// Date an invader is sorted by in the current mode, as YYYY-MM-DD.
+function getEntryDate(id) {
+    if (animationState.mode === 'my' && animationState.galleryData) {
+        const entry = animationState.galleryData.invaders[id];
+        return entry && entry.date_flash ? entry.date_flash.substring(0, 10) : null;
+    }
+    const entry = animationState.extraData && animationState.extraData[id];
+    return entry && entry.date_pos ? entry.date_pos.substring(0, 10) : null;
+}
+
+function progressLabelFor(index) {
+    const total = animationState.animationList.length;
+    if (!total) return '';
+    const shown = Math.min(Math.max(index, 0), total);
+    const id = animationState.animationList[Math.min(shown, total - 1)];
+    const date = getEntryDate(id);
+    return `${shown} / ${total}${date ? ' · ' + date : ''}`;
+}
+
+function updateProgressBar() {
+    const bar = document.getElementById('animationProgress');
+    const slider = document.getElementById('progressSlider');
+    const label = document.getElementById('progressLabel');
+    if (!bar || !slider || !label) return;
+    const total = animationState.animationList.length;
+    if (!total) return;
+    slider.max = total;
+    if (!animationState.scrubbing) {
+        slider.value = animationState.nextIndex;
+        label.textContent = progressLabelFor(animationState.nextIndex);
+    }
+    bar.classList.add('visible');
+    document.body.classList.add('progress-visible');
+}
+
+function hideProgressBar() {
+    const bar = document.getElementById('animationProgress');
+    if (bar) bar.classList.remove('visible');
+    document.body.classList.remove('progress-visible');
+}
+
+// Jump the animation to `target`, rebuilding the markers and the running totals
+// as if it had played up to that point.
+function seekToIndex(target) {
+    const list = animationState.animationList;
+    if (!list.length) return;
+    target = Math.max(0, Math.min(target, list.length));
+    const wasPlaying = animationState.isPlaying;
+
+    animationState.runId++;
+    clearInterval(animationState.spawnerTimer);
+    clearTimeout(animationState.resumeTimeout);
+    animationState.resumeTimeout = null;
+    document.querySelectorAll('#animationOverlay .animation-card').forEach(el => el.remove());
+    clearRedSquares();
+
+    animationState.cumulatedDistance = 0;
+    animationState.cumulatedPoints = 0;
+    animationState.seenCities = new Set();
+    animationState.lastLat = null;
+    animationState.lastLng = null;
+
+    let stats = '';
+    for (let i = 0; i < target; i++) {
+        const id = list[i];
+        const pos = getInvaderPosition(id);
+        if (!pos) continue;
+        animationState.nextIndex = i + 1;
+        stats = accumulateStats(id, { obf_lat: pos.lat, obf_lng: pos.lng });
+        createSpriteMarker(pos.lat, pos.lng, id);
+    }
+    animationState.nextIndex = target;
+    animationState.lastCity = null;  // fly to whichever city we land in
+
+    const overlay = document.getElementById('animationStats');
+    if (overlay) {
+        overlay.textContent = stats;
+        overlay.style.display = stats ? 'block' : 'none';
+    }
+
+    if (wasPlaying) {
+        spawnNext();
+        if (!animationState.resumeTimeout) {
+            animationState.spawnerTimer = setInterval(spawnNext, animationState.spawnInterval);
+        }
+    }
+    updateProgressBar();
+}
+
 function spawnNext() {
     if (!animationState.isPlaying) return;
     if (animationState.nextIndex >= animationState.animationList.length) {
@@ -861,11 +964,10 @@ function spawnNext() {
     const idx = animationState.nextIndex;
     const id = animationState.animationList[idx];
     const inv = invaders[id];
-    // Use default coords from extraData if invader not in invaders.json
-    const extraEntry = animationState.extraData && animationState.extraData[id];
-    const lat = inv ? inv.obf_lat : (extraEntry && extraEntry.default_lat);
-    const lng = inv ? inv.obf_lng : (extraEntry && extraEntry.default_lng);
-    if (lat == null || lng == null) { animationState.nextIndex++; return; }
+    const pos = getInvaderPosition(id);
+    if (!pos) { animationState.nextIndex++; return; }
+    const lat = pos.lat;
+    const lng = pos.lng;
 
     // Auto-pan when city prefix changes (new or returning)
     if (animationState.autoPanOnCityChange) {
@@ -902,6 +1004,7 @@ function spawnNext() {
     animationState.nextIndex++;
 
     updateStatsOverlay(id, inv || { obf_lat: lat, obf_lng: lng });
+    updateProgressBar();
 
     // Start position on ellipse
     const start = getCirclePosition(idx * animationState.angleStep);
@@ -1000,6 +1103,7 @@ function startAnimation(list, mode) {
     map.on('move', updateAnimationEndpoints);
     map.on('zoomanim', onZoomAnim);
     map.on('zoomend', onZoomEnd);
+    updateProgressBar();
 
     spawnNext();
     // Only start interval if spawnNext didn't trigger a city-change pause
@@ -1046,6 +1150,7 @@ function restoreDefaultView() {
     }
     clearRedSquares();
     toggleMarkersVisibility(false);
+    hideProgressBar();
     const stats = document.getElementById('animationStats');
     if (stats) stats.style.display = 'none';
 }
@@ -1062,7 +1167,6 @@ function getMyFlashedList() {
     if (!animationState.galleryData) return null;
     return Object.entries(animationState.galleryData.invaders)
         .filter(([id]) => invaders[id]) // only invaders we have on the map
-        // .filter(([id]) => id.startsWith('RN_')) // TEMP: RN only for debugging
         .sort((a, b) => a[1].date_flash.localeCompare(b[1].date_flash))
         .map(([id]) => id);
 }
@@ -1075,6 +1179,17 @@ function getAllList() {
         .sort((a, b) => a[1].date_pos.localeCompare(b[1].date_pos))
         .map(([id]) => id);
 }
+
+const progressSlider = document.getElementById('progressSlider');
+progressSlider.addEventListener('input', function () {
+    animationState.scrubbing = true;
+    document.getElementById('progressLabel').textContent =
+        progressLabelFor(parseInt(this.value, 10));
+});
+progressSlider.addEventListener('change', function () {
+    animationState.scrubbing = false;
+    seekToIndex(parseInt(this.value, 10));
+});
 
 // Clicking the running animation returns to the plain map; clicking another one
 // switches to it. Returns false when the click was handled as a stop.

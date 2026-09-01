@@ -215,6 +215,48 @@ body {
     font-family: monospace;
 }
 
+/* Animation progress / scrubber */
+#animationProgress {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    box-sizing: border-box;
+    padding: 6px 12px;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+#animationProgress.visible {
+    display: flex;
+}
+
+#progressSlider {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    accent-color: #6bff6b;
+}
+
+#progressLabel {
+    white-space: nowrap;
+}
+
+/* Lift the other bottom widgets above the scrubber */
+body.progress-visible #infoBox {
+    bottom: 42px;
+}
+
+body.progress-visible #animationStats {
+    bottom: 47px;
+}
+
 .city-bonus-banner {
     position: fixed;
     top: 50%;
