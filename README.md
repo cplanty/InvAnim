@@ -19,8 +19,10 @@ Forked from and credited to the original Space Invader map viewer by
 - Eight backgrounds — satellite (default), street, grey, dark, toner,
   watercolour, topographic or none — chosen in Settings and remembered
 - "locate me" control
+- Zoom is capped at roughly a 500 m scale: the published positions are
+  deliberately approximate, so a closer view would only suggest false precision
 - Deep links: `?id=PA_1234` (opens that mosaic on the plain map instead of
-  starting the animation), and `#zoom=15&lat=48.86&lng=2.35`
+  starting the animation), and `#zoom=13&lat=48.86&lng=2.35`
 
 ### Collection tracking
 - Mark mosaics as flashed; stored locally in your browser
@@ -65,7 +67,7 @@ python -m http.server 8000
 
 Then open <http://localhost:8000>.
 
-Example: <http://localhost:8000/?tileset=dark&id=PA_01#zoom=17&lat=48.8583&lng=2.3477>
+Example: <http://localhost:8000/?tileset=dark&id=PA_01#zoom=14&lat=48.8583&lng=2.3477>
 
 ## URL parameters
 

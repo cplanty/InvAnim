@@ -214,7 +214,7 @@ let map = L.map(
         center: startCoords,
         crs: L.CRS.EPSG3857,
         zoom: startZoom,
-        maxZoom: 17,
+        maxZoom: 14,
         zoomControl: true,
         preferCanvas: false,
         attributionControl: false,
