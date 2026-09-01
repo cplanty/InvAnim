@@ -1050,10 +1050,6 @@ function restoreDefaultView() {
     if (stats) stats.style.display = 'none';
 }
 
-function areAnyAnimationsRunning() {
-    return animationState.isPlaying;
-}
-
 // Build PA list sorted by number
 function getPAList() {
     return Object.keys(invaders)
@@ -1080,27 +1076,29 @@ function getAllList() {
         .map(([id]) => id);
 }
 
-document.getElementById('showDefaultView').addEventListener('click', function(e) {
-    e.preventDefault();
-    restoreDefaultView();
-});
+// Clicking the running animation returns to the plain map; clicking another one
+// switches to it. Returns false when the click was handled as a stop.
+function beginAnimationRequest(mode) {
+    if (animationState.isPlaying) {
+        if (animationState.mode === mode) {
+            restoreDefaultView();
+            return false;
+        }
+        stopAnimation();
+    }
+    clearRedSquares();
+    return true;
+}
 
 document.getElementById('startAnimation').addEventListener('click', function(e) {
     e.preventDefault();
-    if (areAnyAnimationsRunning()) {
-        stopAnimation();
-    } else {
-        clearRedSquares();
-        startAnimation(getPAList(), 'pa');
-    }
+    if (!beginAnimationRequest('pa')) return;
+    startAnimation(getPAList(), 'pa');
 });
 
 document.getElementById('startMyAnimation').addEventListener('click', function(e) {
     e.preventDefault();
-    if (areAnyAnimationsRunning()) {
-        stopAnimation();
-        return;
-    }
+    if (!beginAnimationRequest('my')) return;
 
     const uid = localStorage.getItem('uid');
     if (!uid) {
@@ -1112,7 +1110,6 @@ document.getElementById('startMyAnimation').addEventListener('click', function(e
     if (animationState.galleryData) {
         const list = getMyFlashedList();
         if (list && list.length > 0) {
-            clearRedSquares();
             startAnimation(list, 'my');
         }
         return;
@@ -1125,7 +1122,6 @@ document.getElementById('startMyAnimation').addEventListener('click', function(e
             animationState.galleryData = data;
             const list = getMyFlashedList();
             if (list && list.length > 0) {
-                clearRedSquares();
                 startAnimation(list, 'my');
                 console.log(`Animate My: ${list.length} flashed mosaics, from ${data.invaders[list[0]].date_flash} to ${data.invaders[list[list.length-1]].date_flash}`);
             } else {
@@ -1137,16 +1133,12 @@ document.getElementById('startMyAnimation').addEventListener('click', function(e
 
 document.getElementById('startAllAnimation').addEventListener('click', function(e) {
     e.preventDefault();
-    if (areAnyAnimationsRunning()) {
-        stopAnimation();
-        return;
-    }
+    if (!beginAnimationRequest('all')) return;
 
     // Load extra data if not cached
     if (animationState.extraData) {
         const list = getAllList();
         if (list && list.length > 0) {
-            clearRedSquares();
             startAnimation(list, 'all');
         }
         return;
@@ -1158,7 +1150,6 @@ document.getElementById('startAllAnimation').addEventListener('click', function(
             animationState.extraData = data;
             const list = getAllList();
             if (list && list.length > 0) {
-                clearRedSquares();
                 startAnimation(list, 'all');
                 console.log(`Animate All: ${list.length} invaders, from ${data[list[0]].date_pos} to ${data[list[list.length-1]].date_pos}`);
             } else {
