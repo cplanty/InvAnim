@@ -19,7 +19,8 @@ Forked from and credited to the original Space Invader map viewer by
 - Eight backgrounds — satellite (default), street, grey, dark, toner,
   watercolour, topographic or none — chosen in Settings and remembered
 - Search a mosaic by ID; "locate me" control
-- Deep links: `?id=PA_1234`, and `#zoom=15&lat=48.86&lng=2.35`
+- Deep links: `?id=PA_1234` (opens that mosaic on the plain map instead of
+  starting the animation), and `#zoom=15&lat=48.86&lng=2.35`
 
 ### Collection tracking
 - Mark mosaics as flashed; stored locally in your browser
@@ -27,8 +28,9 @@ Forked from and credited to the original Space Invader map viewer by
 - Optionally import your flashed list from the FlashInvaders app via your `uid`
 
 ### Animations
-Three modes replay the mosaics as sprites flying from off-screen onto their map
-position, with a live stats overlay (distance, points, city count, dates):
+The site opens straight into the **InvAnim** animation. Three modes replay the
+mosaics as sprites flying from off-screen onto their map position, with a live
+stats overlay (distance, points, city count, dates):
 
 | Mode | Order | Extra |
 |---|---|---|
@@ -70,7 +72,7 @@ Example: <http://localhost:8000/?tileset=dark&id=PA_01#zoom=17&lat=48.8583&lng=2
 | Parameter | Values |
 |---|---|
 | `?tileset=` | `satellite` (default), `osm`, `grayscale`, `dark`, `toner`, `watercolor`, `topo`, `none`. Overrides the Settings choice; the older `st` and `grau` keys still work. |
-| `?id=` | mosaic ID, e.g. `PA_1234` — centres the map and opens its popup |
+| `?id=` | mosaic ID, e.g. `PA_1234` — centres the map, opens its popup, and skips the opening animation |
 | `#zoom=&lat=&lng=` | initial view |
 
 ## Project layout

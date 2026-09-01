@@ -366,6 +366,13 @@ const invadersReady = fetch('invaders.json?nocache=1')
 
         // Precompute city centers (median lat/lng of all invaders per prefix)
         computeCityCenters();
+
+        // The plain marker map is not a destination of its own: unless a deep
+        // link points at a single mosaic, land straight in the full animation.
+        if (!(targetInvaderId && invaders[targetInvaderId])) {
+            toggleMarkersVisibility(true);
+            launchAllAnimation();
+        }
     })
     .catch(error => {
         console.error('Error loading JSON:', error);
@@ -1330,8 +1337,8 @@ document.getElementById('startMyAnimation').addEventListener('click', function(e
         .catch(() => alert('Error fetching gallery data. Check your UID in Settings.'));
 });
 
-document.getElementById('startAllAnimation').addEventListener('click', function(e) {
-    e.preventDefault();
+// Start (or resume) the full-history animation. Also used as the landing view.
+function launchAllAnimation() {
     if (!beginAnimationRequest('all')) return;
 
     // Load extra data if not cached
@@ -1352,12 +1359,17 @@ document.getElementById('startAllAnimation').addEventListener('click', function(
             const list = getAllList();
             if (list && list.length > 0) {
                 startAnimation(list, 'all');
-                console.log(`Animate All: ${list.length} invaders, from ${data[list[0]].date_pos} to ${data[list[list.length-1]].date_pos}`);
+                console.log(`InvAnim: ${list.length} invaders, from ${data[list[0]].date_pos} to ${data[list[list.length-1]].date_pos}`);
             } else {
                 alert('No invaders with placement dates in the selected date range.');
             }
         })
         .catch(() => alert('Error loading invaders_extra.json.'));
+}
+
+document.getElementById('startAllAnimation').addEventListener('click', function(e) {
+    e.preventDefault();
+    launchAllAnimation();
 });
 
 if ('serviceWorker' in navigator) {
