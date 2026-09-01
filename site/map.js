@@ -313,27 +313,6 @@ var locate_control_48d140e7efd49a2600412d092814c0e3 = L.control.locate(
     {}
 ).addTo(map);
 
-var lookup_control = L.Control.extend({
-    options: {
-        position: 'topleft'
-    },
-
-    onAdd: function (map) {
-        var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
-        container.style.display = 'flex';
-        container.style.justifyContent = 'center';
-        container.style.alignItems = 'center';
-        container.innerHTML = '<a href="#" title="Lookup" role="button" aria-label="Lookup"><i class="fa fa-search" style="font-size: 1.4em; color: black;"></i></a>';
-        container.onclick = function(e) {
-            e.preventDefault();
-            openLookupModal();
-        }
-        return container;
-    }
-});
-map.addControl(new lookup_control());
-
-
 // Check if we have an id parameter
 let targetInvaderId = new URLSearchParams(window.location.search).get('id');
 if (targetInvaderId) {
@@ -426,9 +405,6 @@ window.onclick = function (event) {
     if (event.target == modal) {
         closeSettingsModal();
     }
-    if (event.target == lookupModal) {
-        closeLookupModal();
-    }
 }
 
 function closeSettingsModal() {
@@ -438,62 +414,6 @@ function closeSettingsModal() {
 
     document.getElementById("infoBox").style.display = "block";
 }
-
-// Lookup modal
-var lookupModal = document.getElementById("lookupModal");
-var lookupInput = document.getElementById("lookupInput");
-var suggestions = document.getElementById("suggestions");
-var lookupCloseBtn = document.getElementById("lookupCloseBtn");
-
-function openLookupModal() {
-    lookupModal.style.display = "block";
-    lookupInput.value = "";
-    suggestions.innerHTML = "";
-    lookupInput.focus();
-}
-
-function closeLookupModal() {
-    lookupModal.style.display = "none";
-}
-
-lookupCloseBtn.onclick = closeLookupModal;
-
-lookupInput.addEventListener('keyup', function() {
-    const input = lookupInput.value.toUpperCase();
-    suggestions.innerHTML = '';
-    if (input.length < 2) {
-        return;
-    }
-
-    const matchingInvaders = Object.keys(invaders).filter(id => id.startsWith(input));
-
-    matchingInvaders.forEach(id => {
-        const suggestionDiv = document.createElement('div');
-        suggestionDiv.innerHTML = id;
-        suggestionDiv.onclick = function() {
-            lookupInput.value = id;
-            suggestions.innerHTML = '';
-            goToInvader(id);
-        }
-        suggestions.appendChild(suggestionDiv);
-    });
-});
-
-function goToInvader(id) {
-    if (invaders[id]) {
-        const invader = invaders[id];
-        if (!invader.visible) {
-            markers.addLayer(invader.marker);
-            invader.visible = true;
-        }
-        map.setView([invader.obf_lat, invader.obf_lng], map.getMaxZoom());
-        invader.marker.openPopup();
-        closeLookupModal();
-    } else {
-        alert("Invader not found!");
-    }
-}
-
 
 const tilesetSelect = document.getElementById('tilesetSelect');
 Object.entries(TILESETS).forEach(([key, spec]) => {

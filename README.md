@@ -18,7 +18,7 @@ Forked from and credited to the original Space Invader map viewer by
 - Sprite artwork in popups, rendered from AVIF atlases
 - Eight backgrounds — satellite (default), street, grey, dark, toner,
   watercolour, topographic or none — chosen in Settings and remembered
-- Search a mosaic by ID; "locate me" control
+- "locate me" control
 - Deep links: `?id=PA_1234` (opens that mosaic on the plain map instead of
   starting the animation), and `#zoom=15&lat=48.86&lng=2.35`
 

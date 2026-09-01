@@ -105,21 +105,6 @@ body {
   font-weight: bold;
 }
 
-#suggestions {
-    border: 1px solid #ddd;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-#suggestions div {
-    padding: 8px;
-    cursor: pointer;
-}
-
-#suggestions div:hover {
-    background-color: #f1f1f1;
-}
-
 /* Animation overlay */
 .animation-overlay {
     display: none;
