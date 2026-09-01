@@ -248,6 +248,7 @@ body {
     white-space: nowrap;
 }
 
+
 /* Lift the other bottom widgets above the scrubber */
 body.progress-visible #infoBox {
     bottom: 42px;

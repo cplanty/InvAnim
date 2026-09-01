@@ -37,7 +37,8 @@ position, with a live stats overlay (distance, points, city count, dates):
 | **My** | your flashed mosaics by flash date | points, cities, flash date |
 
 The map auto-pans between cities, with a "+100 PTS" bonus banner the first time
-each new city appears.
+each new city appears. When a date range is set, cities already explored before
+the range are not celebrated again — only genuine first visits count.
 
 A progress bar along the bottom shows how far the animation has got and the date
 it has reached. Drag it to jump anywhere in the sequence — the map is rebuilt to

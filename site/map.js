@@ -623,6 +623,7 @@ let animationState = {
     lastLng: null,
     cumulatedPoints: 0,
     seenCities: null,      // Set of city prefixes seen so far (for city bonus)
+    priorCities: null,     // Set of city prefixes explored before the date range
     lastCity: null,        // last city prefix (to detect any city switch)
     autoPanOnCityChange: true,  // fly map to new/different city when prefix changes
     cityZoomLevels: {
@@ -719,11 +720,13 @@ function accumulateStats(id, inv) {
     animationState.lastLat = inv.obf_lat;
     animationState.lastLng = inv.obf_lng;
 
-    // City bonus: +100 for each new city prefix
+    // City bonus: +100 for each newly discovered city prefix
     const cityPrefix = getCityPrefix(id);
     if (!animationState.seenCities.has(cityPrefix)) {
+        if (isCityNew(cityPrefix)) {
+            animationState.cumulatedPoints += 100;
+        }
         animationState.seenCities.add(cityPrefix);
-        animationState.cumulatedPoints += 100;
     }
 
     const count = animationState.nextIndex;
@@ -893,17 +896,31 @@ function getEntryDate(id, mode) {
 }
 
 // Keep only the invaders inside the date range set in Settings, if any.
+// Also records which cities were already explored before the range starts, so a
+// narrowed run does not celebrate them as discoveries.
 function applyDateRange(list, mode) {
     const from = localStorage.getItem('animFrom') || '';
     const to = localStorage.getItem('animTo') || '';
+    animationState.priorCities = new Set();
     if (!from && !to) return list;
     return list.filter(id => {
         const date = getEntryDate(id, mode);
         if (!date) return false;
-        if (from && date < from) return false;
+        if (from && date < from) {
+            animationState.priorCities.add(getCityPrefix(id));
+            return false;
+        }
         if (to && date > to) return false;
         return true;
     });
+}
+
+// A city is a discovery only if it appears neither earlier in this run nor
+// anywhere before the start of the selected date range.
+function isCityNew(prefix) {
+    if (animationState.seenCities && animationState.seenCities.has(prefix)) return false;
+    if (animationState.priorCities && animationState.priorCities.has(prefix)) return false;
+    return true;
 }
 
 function progressLabelFor(index) {
@@ -1006,7 +1023,7 @@ function spawnNext() {
         const prefix = getCityPrefix(id);
         if (prefix !== animationState.lastCity) {
             const zoom = animationState.cityZoomLevels[prefix] || animationState.autoPanZoomDefault;
-            const isNewCity = !animationState.seenCities.has(prefix);
+            const isNew = isCityNew(prefix);
 
             // Pause spawning, let the map settle, fly to the new city, then resume
             clearTimeout(animationState.resumeTimeout);
@@ -1017,12 +1034,12 @@ function spawnNext() {
             setTimeout(() => {
                 if (!animationState.isPlaying) return;
                 map.flyTo([cityCenter.lat, cityCenter.lng], zoom, { duration: 3 });
-                if (isNewCity) {
+                if (isNew) {
                     showCityBonusBanner(prefix);
                 }
             }, settleDelay);
             animationState.lastCity = prefix;
-            const flyDuration = isNewCity ? 3200 : 2200;
+            const flyDuration = isNew ? 3200 : 2200;
             animationState.resumeTimeout = setTimeout(() => {
                 if (animationState.isPlaying) {
                     animationState.spawnerTimer = setInterval(spawnNext, animationState.spawnInterval);
