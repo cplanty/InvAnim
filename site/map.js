@@ -233,54 +233,81 @@ L.control.scale({
     position: 'topright',
 }).addTo(map);
 
-var tile_layer;
-var tileset = new URLSearchParams(window.location.search).get('tileset');
-if (tileset === 'st') {
-    tile_layer = L.tileLayer(
-        "https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.png",
-        { "attribution": "\u0026copy; \u003ca href=\"https://stadiamaps.com/\" target=\"_blank\"\u003eStadia Maps\u003c/a\u003e\n\u0026copy; \u003ca href=\"https://www.stamen.com/\" target=\"_blank\"\u003eStamen Design\u003c/a\u003e\n\u0026copy; \u003ca href=\"https://openmaptiles.org/\" target=\"_blank\"\u003eOpenMapTiles\u003c/a\u003e\n\u0026copy; \u003ca href=\"https://www.openstreetmap.org/about/\" target=\"_blank\"\u003eOpenStreetMap contributors\u003c/a\u003e", "detectRetina": false, "maxNativeZoom": 18, "maxZoom": 18, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false }
-    );
-} else if (tileset === 'grau') {
-    tile_layer = L.tileLayer(
-        'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web_grau/default/WEBMERCATOR/{z}/{y}/{x}.png',
-        { "attribution": 'Map data: \u0026copy; \u003ca href="https://www.govdata.de/dl-de/by-2-0"\u003edl-de/by-2-0\u003c/a\u003e' }
-    );
-} else if (tileset === 'none') {
-    // No tile layer.
-} else if (tileset === 'osm') {
-    tile_layer = L.tileLayer(
-        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-            "attribution": '\u0026copy; \u003ca href="https://www.openstreetmap.org/copyright"\u003eOpenStreetMap\u003c/a\u003e contributors',
-        }
-    );
-} else if (tileset === 'dark') {
-    tile_layer = L.tileLayer(
-        'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
-        { "attribution": '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/about/">OpenStreetMap</a>', "maxZoom": 18 }
-    );
-} else if (tileset === 'watercolor') {
-    tile_layer = L.tileLayer(
-        'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
-        { "attribution": '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://www.stamen.com/">Stamen Design</a>', "maxZoom": 16 }
-    );
-} else if (tileset === 'satellite') {
-    tile_layer = L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { "attribution": '&copy; Esri, Maxar, Earthstar Geographics', "maxZoom": 18 }
-    );
-} else {
-    tile_layer = L.tileLayer(
-        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-            "attribution": '\u0026copy; \u003ca href="https://www.openstreetmap.org/copyright"\u003eOpenStreetMap\u003c/a\u003e contributors',
-            "className": "grayscale",
-        }
-    );
+// Available tile layers. The key is what `?tileset=` and localStorage store.
+const TILESETS = {
+    satellite: {
+        label: 'Satellite',
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        options: { attribution: '&copy; Esri, Maxar, Earthstar Geographics', maxZoom: 18 },
+    },
+    osm: {
+        label: 'Street',
+        url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options: { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' },
+    },
+    grayscale: {
+        label: 'Street (grey)',
+        url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options: {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            className: 'grayscale',
+        },
+    },
+    dark: {
+        label: 'Dark',
+        url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
+        options: { attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/about/">OpenStreetMap</a>', maxZoom: 18 },
+    },
+    toner: {
+        label: 'Toner (black & white)',
+        url: 'https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.png',
+        options: { attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://www.stamen.com/">Stamen Design</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/about/">OpenStreetMap</a> contributors', maxZoom: 18, subdomains: 'abc' },
+    },
+    watercolor: {
+        label: 'Watercolour',
+        url: 'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg',
+        options: { attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://www.stamen.com/">Stamen Design</a>', maxZoom: 16 },
+    },
+    topo: {
+        label: 'Topographic (grey)',
+        url: 'https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web_grau/default/WEBMERCATOR/{z}/{y}/{x}.png',
+        options: { attribution: 'Map data: &copy; <a href="https://www.govdata.de/dl-de/by-2-0">dl-de/by-2-0</a>' },
+    },
+    none: { label: 'No background' },
+};
+
+// Keys used by older links.
+const TILESET_ALIASES = { st: 'toner', grau: 'topo', esri: 'satellite' };
+const DEFAULT_TILESET = 'satellite';
+
+function resolveTileset() {
+    const requested = new URLSearchParams(window.location.search).get('tileset')
+        || localStorage.getItem('tileset')
+        || DEFAULT_TILESET;
+    const key = TILESET_ALIASES[requested] || requested;
+    return TILESETS[key] ? key : DEFAULT_TILESET;
 }
-if (tile_layer) {
-    tile_layer.addTo(map);
+
+var tile_layer = null;
+let currentTileset = resolveTileset();
+
+function applyTileset(key) {
+    const spec = TILESETS[key];
+    if (!spec) return;
+    if (tile_layer) {
+        map.removeLayer(tile_layer);
+        tile_layer = null;
+    }
+    if (spec.url) {
+        tile_layer = L.tileLayer(spec.url, spec.options || {});
+        tile_layer.addTo(map);
+        tile_layer.bringToBack();
+    }
+    currentTileset = key;
 }
+
+applyTileset(currentTileset);
+
 
 var locate_control_48d140e7efd49a2600412d092814c0e3 = L.control.locate(
     {}
@@ -460,6 +487,19 @@ function goToInvader(id) {
     }
 }
 
+
+const tilesetSelect = document.getElementById('tilesetSelect');
+Object.entries(TILESETS).forEach(([key, spec]) => {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = spec.label;
+    tilesetSelect.appendChild(option);
+});
+tilesetSelect.value = currentTileset;
+tilesetSelect.addEventListener('change', function () {
+    applyTileset(this.value);
+    localStorage.setItem('tileset', this.value);
+});
 
 document.getElementById('hideCollectedCheckbox').addEventListener('change', function () {
     hideCollected = this.checked;
