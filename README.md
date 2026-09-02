@@ -1,3 +1,5 @@
+## [Try it here](https://cplanty.github.io/InvAnim/site/)
+
 # InvAnim
 
 An interactive map of **Space Invader** street art mosaics worldwide, with
