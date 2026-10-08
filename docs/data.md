@@ -28,6 +28,10 @@ A JSON array of every known mosaic. Source of all map markers.
 
 Coordinates are intentionally imprecise: they place a mosaic on the right
 street without giving an exact position.
+New locations in the 2026-10-08 update are snapped to a 20 m grid. Latitude
+uses a step of `degrees(20 / 6371008.8)`; longitude uses
+`degrees(20 / (6371008.8 * cos(snapped_latitude)))`, so the grid spacing stays
+approximately 20 m at each latitude. Existing locations are unchanged.
 
 ## `invaders_extra.json`
 
@@ -78,10 +82,29 @@ Sprites are drawn with CSS `background-image` plus percentage
 - The city prefix is extracted with `^(.+?)_\d+$`, falling back to the whole ID
   for edge cases such as `SPACE2ISS`, which has no numeric suffix.
 - Each newly encountered prefix during an animation awards a +100 city bonus.
+- The ISS aliases `SPACE_02` and `SPACE2ISS_NaN` refer to `SPACE2ISS`.
+  Its existing placement date, `2015-03-12`, is preserved, with one animation
+  entry rather than duplicate mosaics.
 
 ## Updating the data
 
-The data files are snapshots produced by a separate private tooling pipeline
-that scrapes public sources and rebuilds the atlases. That tooling is not part
-of this repository. To refresh the site, replace `invaders.json`,
-`invaders_extra.json` and the contents of `assets/`, then redeploy.
+The data files are snapshots of public community sources. The deployed site is
+standalone and needs no backend or external tooling service.
+The tooling used to aggregate this info is not part of this repository. 
+To refresh the site, replace `invaders.json`, `invaders_extra.json`
+and the contents of `assets/`, then redeploy.
+
+Placement dates, points, current statuses and new sprite artwork come from
+[Invader Spotter](https://www.invader-spotter.art). Placement dates can be
+retrieved by POSTing `mode=date&date=2026&page=1` to its `listing.php`, with
+`dates.php` as the Referer; listings contain 16 results per page. Status update
+dates must not be treated as placement dates.
+
+Retrieve sources serially, space requests by at least three seconds, cache
+responses, and download only missing artwork. Merge new locations rather than
+overwriting existing ones, snap new coordinates to the grid above, and retain
+known dates and point values. Repack changed sprite atlases, regenerate the
+combined `assets/all_atlases.json` lookup, then redeploy the static files.
+
+The 2026-10-08 snapshot adds 97 locations, including PA_1594, PA_1598 and all
+19 Stockholm mosaics, plus 20 new sprites. STK_13 is marked destroyed.

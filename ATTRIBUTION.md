@@ -23,12 +23,13 @@ sourced from **[delhoume/MyInvasion](https://github.com/delhoume/MyInvasion)**.
 Please consult that repository for its own licence and redistribution terms
 before reusing the atlases.
 
-## Placement dates and points — invader-spotter.art
+## Placement dates, points and additional artwork — invader-spotter.art
 
 The placement dates (`date_pos`) and point values (`points`) in
 `site/invaders_extra.json` are derived from
 **[invader-spotter.art](https://www.invader-spotter.art)**, a community
 reference maintained by its own authors and contributors.
+New Paris and Stockholm sprite artwork is also sourced from that site.
 
 ## Mosaic locations
 

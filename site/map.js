@@ -720,7 +720,7 @@ const CITY_NAMES = {
     'PRT': 'Perth', 'RA': 'Ravenna', 'RBA': 'Rabat', 'RDU': 'Redu',
     'REUN': 'La Réunion', 'RN': 'Rennes', 'ROM': 'Roma', 'RTD': 'Rotterdam',
     'SD': 'San Diego', 'SL': 'Seoul', 'SP': 'São Paulo', 'SPACE': 'Space',
-    'SPACE2ISS': 'ISS', 'TK': 'Tokyo', 'TLS': 'Toulouse', 'VLMO': 'Valmorel',
+    'SPACE2ISS': 'ISS', 'STK': 'Stockholm', 'TK': 'Tokyo', 'TLS': 'Toulouse', 'VLMO': 'Valmorel',
     'VRN': 'Varanasi', 'VRS': 'Versailles', 'VSB': 'Visby', 'WN': 'Vienna',
 };
 
