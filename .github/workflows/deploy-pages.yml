@@ -15,7 +15,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  publishing-mode:
+    runs-on: ubuntu-latest
+    outputs:
+      build_type: ${{ steps.pages.outputs.build_type }}
+    steps:
+      - id: pages
+        name: Check Pages publishing mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          build_type=$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type)
+          echo "build_type=${build_type}" >> "$GITHUB_OUTPUT"
+
   deploy:
+    needs: publishing-mode
+    if: needs.publishing-mode.outputs.build_type == 'workflow'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -25,7 +40,7 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
-      # Only `site/` is uploaded, so docs and workflows are never published.
+      # In Actions mode, only `site/` is uploaded.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

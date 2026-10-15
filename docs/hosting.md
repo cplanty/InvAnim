@@ -1,7 +1,12 @@
 # Hosting InvAnim
 
 InvAnim is a plain static site: **no build step, no server code, no database.**
-Everything that gets published lives in `site/`.
+Application files live in `site/`.
+
+Both versions are static entry points: `index.html` is the unchanged original,
+and `mobile.html` is the isolated mobile version. Publish both with their
+respective JavaScript, CSS and manifests, plus the shared data, icons and
+artwork. There is no device detection or automatic redirect.
 
 - **Size:** ~13 MB across ~200 files (10.8 MB of that is the AVIF atlases)
 - **Requirement:** static file serving over **HTTPS** (needed for the service
@@ -33,13 +38,25 @@ uses ~200 files with a largest file of ~1.3 MB, so there is a wide margin.
 
 ## GitHub Pages
 
-`.github/workflows/deploy-pages.yml` is included and publishes **only `site/`**,
-so docs and workflow files are never served.
+The current repository uses **Deploy from a branch**, with branch `main` and
+folder `/ (root)`. A push to `main` triggers GitHub's branch-based Pages build.
+This preserves the existing addresses:
 
-1. Repository **Settings → Pages → Source: GitHub Actions**.
-2. Push to `main`.
-3. For a custom domain, set it in Settings → Pages and commit a `site/CNAME`
-   file containing the domain.
+- Original: <https://cplanty.github.io/InvAnim/site/>
+- Mobile: <https://cplanty.github.io/InvAnim/site/mobile.html>
+
+In branch mode, repository documentation is also published. The included
+`.github/workflows/deploy-pages.yml` checks the selected Pages mode and skips
+its artifact deployment to avoid competing with the branch-based build.
+
+For a site-only deployment instead, change **Settings → Pages → Source** to
+**GitHub Actions**, then push to `main` or manually run the workflow. It
+publishes **only `site/`**, with the original app at `/InvAnim/` and mobile at
+`/InvAnim/mobile.html`; update shared links if switching modes. Documentation,
+tests and workflow files are not included in that artifact.
+
+For a custom domain, set it in Pages settings. With branch-based publishing
+from the repository root, its `CNAME` belongs at the repository root.
 
 Note that GitHub Pages ignores `_headers` — that file is Cloudflare-specific.
 Pages limits: 1 GB published site, soft 100 GB/month bandwidth.
@@ -51,19 +68,22 @@ used. `site/_headers` sets:
 
 - `site/assets/*` and `site/icons/*` — cached for 7 days
 - `invaders.json`, `invaders_extra.json`, `sw.js`, `manifest.json`,
-  `index.html` — `no-cache` (revalidate every load)
+  `index.html`, `mobile.html`, `mobile-manifest.json` — `no-cache`
+  (revalidate every load)
 
 If you rebuild the atlases, returning visitors pick them up within a week; use a
 cache purge if you need it sooner.
 
 ## Bandwidth
 
-A cold, uncached visit downloads roughly 13 MB, because `initializeAtlases()`
+A cold, uncached visit to the original version downloads roughly 13 MB, because `initializeAtlases()`
 preloads every atlas so sprites never flash white mid-animation. That is about
 **8,000 full cold loads per 100 GB**.
 
-If traffic ever makes this a concern, the preload loop in `initializeAtlases()`
-is the single place to change — atlases could be fetched lazily per city.
+The mobile version loads artwork on demand, with a small look-ahead instead of
+preloading all 93 atlases. Its initial artwork transfer is therefore much
+smaller, although a complete playback can eventually load all the artwork.
+Map tile and third-party library traffic is additional in both versions.
 
 ## Third-party runtime dependencies
 

@@ -1,0 +1,352 @@
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  height: 100dvh;
+}
+
+.leaflet-top {
+    top: env(safe-area-inset-top);
+}
+
+.leaflet-container {
+    font-size: 1rem;
+}
+
+/* The Modal (background) */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 10000; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content */
+.modal-content {
+  background-color: #fefefe;
+  margin: 5% auto; /* 5% from the top and centered horizontally */
+  padding: 15px;
+  border: 1px solid #888;
+  width: 90%;
+  max-width: 400px;
+  box-sizing: border-box;
+  position: relative;
+  overflow-wrap: anywhere;
+}
+
+.modal input,
+.modal select,
+.modal button {
+    max-width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+/* The Close Button */
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.leaflet-popup button {
+  width: 100%;
+}
+
+/* Override cluster colors */
+
+.marker-cluster-small {
+	background-color: rgba(250, 200, 152, 0.6) !important;
+	}
+.marker-cluster-small div {
+	background-color: rgba(255, 165, 0, 0.6) !important;
+	}
+
+.marker-cluster-medium {
+	background-color: rgba(250, 200, 152, 0.6) !important;
+	}
+.marker-cluster-medium div {
+	background-color: rgba(255, 165, 0, 0.6) !important;
+	}
+
+.marker-cluster-large {
+	background-color: rgba(250, 200, 152, 0.6) !important;
+	}
+.marker-cluster-large div {
+	background-color: rgba(255, 165, 0, 0.6) !important;
+	}
+
+/* Layers */
+
+.grayscale {
+  filter: grayscale(100%);
+}
+
+#infoBox {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    gap: 4px;
+    background: #111;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#infoBox a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 6px;
+    color: white;
+}
+
+body.animation-menu-hidden #infoBox {
+    display: none;
+}
+
+#animationStats,
+#progressLabel {
+    cursor: pointer;
+}
+
+#animationStats:focus-visible,
+#progressLabel:focus-visible {
+    outline: 2px solid #6bff6b;
+    outline-offset: -2px;
+}
+
+#mobileControls {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9600;
+    display: flex;
+    flex-direction: column;
+    padding: 0 max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom)
+        max(8px, env(safe-area-inset-left));
+    background: rgba(0, 0, 0, 0.88);
+    color: white;
+}
+
+#animationStatus {
+    padding: 8px;
+    font: 14px sans-serif;
+}
+
+#retryAnimation {
+    align-self: center;
+    min-height: 44px;
+    margin: 4px;
+}
+
+.completed-sprites {
+    position: absolute;
+    pointer-events: none;
+}
+
+/* Animation overlay */
+.animation-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    z-index: 9500;
+    pointer-events: none;
+}
+
+.animation-overlay.active {
+    display: block;
+}
+
+.animation-card {
+    position: fixed;
+    background: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9501;
+    opacity: 0;
+    will-change: transform;
+}
+
+.animation-card.active {
+    opacity: 1;
+    transition: opacity 0.2s ease-in;
+}
+
+.animation-image {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: bold;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* A fixed-size card moves and shrinks without per-frame layout. */
+.animation-card.shrinking {
+    animation: shrinkToMarker var(--anim-duration, 4.5s) ease-in-out forwards !important;
+}
+
+@keyframes shrinkToMarker {
+    from {
+        transform: translate3d(var(--start-x), var(--start-y), 0)
+            translate(-50%, -50%) scale(1);
+    }
+    to {
+        transform: translate3d(var(--end-x), var(--end-y), 0)
+            translate(-50%, -50%) scale(var(--end-scale));
+    }
+}
+
+/* Red square markers for completed PA animations */
+.red-square-marker {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+#animationStats {
+    display: none;
+    color: white;
+    padding: 6px 4px;
+    font-size: 12px;
+    font-weight: bold;
+    font-family: monospace;
+    overflow-wrap: anywhere;
+}
+
+/* Animation progress / scrubber */
+#animationProgress {
+    display: none;
+    box-sizing: border-box;
+    padding: 0 4px;
+    align-items: center;
+    gap: 4px;
+    color: white;
+    font-family: monospace;
+    font-size: 12px;
+    order: 1;
+    flex-wrap: wrap;
+}
+
+#animationProgress.visible {
+    display: flex;
+}
+
+#progressSlider {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    accent-color: #6bff6b;
+    min-height: 44px;
+    margin: 0;
+    flex-basis: 100%;
+}
+
+#progressLabel {
+    white-space: nowrap;
+    padding-bottom: 6px;
+}
+
+body.animation-paused #progressLabel::after {
+    content: ' · paused';
+    color: #ffcc00;
+}
+
+
+.city-bonus-banner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    z-index: 9550;
+    background: rgba(0, 0, 0, 0.85);
+    color: #ffd700;
+    padding: 12px 10px;
+    border-radius: 8px;
+    font-size: clamp(10px, 2.8vw, 20px);
+    font-weight: bold;
+    font-family: 'Press Start 2P', 'Courier New', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0 #b8860b;
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    text-align: center;
+    width: max-content;
+    max-width: calc(100% - 24px);
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+}
+
+.city-bonus-banner.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.city-bonus-name {
+    font-size: clamp(12px, 3.5vw, 24px);
+    margin-bottom: 8px;
+    color: #fff;
+    text-shadow: 2px 2px 0 #555;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    #animationProgress {
+        flex-wrap: nowrap;
+    }
+
+    #progressSlider {
+        flex-basis: auto;
+    }
+
+    #progressLabel {
+        padding-bottom: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .city-bonus-banner {
+        transition: none;
+    }
+}

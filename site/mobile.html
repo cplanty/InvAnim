@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+    <title>InvAnim Mobile — experimental animation</title>
+    <meta name="description" content="An interactive map of Space Invader street art mosaics worldwide, with animated fly-throughs by number, by placement date, or by your own flashed collection." />
+
+    <script>
+        L_NO_TOUCH = false;
+        L_DISABLE_3D = false;
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <script
+        src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <link rel="manifest" href="mobile-manifest.json">
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="icons/favicon.png" sizes="any" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css" />
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css" />
+    <link rel="stylesheet"
+        href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet"
+        href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="mobile.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.81.1/dist/L.Control.Locate.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.81.1/dist/L.Control.Locate.min.js" charset="utf-8"></script>
+</head>
+
+<body>
+    <div id="settingsModal" class="modal">
+
+        <!-- Modal content -->
+        <div class="modal-content">
+            <h4>Mobile preview</h4>
+            <p>This version has separate settings and collection storage.
+                <a href="index.html">Open the original version</a>.</p>
+            <h4>Display settings</h4>
+            <p>Map background: <select id="tilesetSelect"></select></p>
+            <p><input type="checkbox" id="hideCollectedCheckbox" /> Hide flashed mosaics</p>
+            <p><input type="checkbox" id="hideDestroyedCheckbox" /> Hide destroyed / not flashable mosaics</p>
+
+            <h4>Animation</h4>
+            <p>Limit an animation to a date range — placement date for InvAnim and
+                Paris, flash date for My. Applies next time you start one.</p>
+            <p>
+                From <input type="date" id="animFromDate" />
+                to <input type="date" id="animToDate" />
+                <button id="animDateClear">Clear</button>
+            </p>
+
+            <h4>Backup</h4>
+            <p>The mosaics marked as flashed are stored locally. They are preserved between visits but not
+                synced between devices. You can download
+                and backup/restore them as needed.
+            </p>
+            <button id="downloadButton">Download flashed mosaics</button>
+            <h4>Restore from file</h4>
+            <p><span id="settingsRestoreStatus">⬇️ Upload file to restore flashed mosaics.</span></p>
+            <input type="file" id="uploadInput" />
+            <br />
+
+            <p>Warning: the file you upload replaces the current state, any invader not in the file will be marked as not flashed.</p>
+            <h4>Restore from app</h4>
+            <p>If you know the <a href="https://medium.com/@cborel/mapinvaders-f661a4b3301c" target="_blank">user ID</a> (uid) of your Flash Invaders account, you can enter it below to mark the mosaics collected in the app as flashed. <span id="restoreFromAppStatus"></span></p>
+            <input type="text" id="uidInput" placeholder="Enter Flash Invaders uid" />
+            <br/>
+            <button id="restoreFromAppButton">Restore from app</button>
+
+            <h4>About</h4>
+            <p>
+                InvAnim is open source —
+                <a href="https://github.com/cplanty/invanim" target="_blank" rel="noopener">source code and credits</a>.
+                <br />
+                Based on the original
+                <a href="https://pnote.eu/projects/invaders/" target="_blank" rel="noopener">Space Invader map by pnote.eu</a>.
+            </p>
+            <span id="settingsCloseBtn" style="position: absolute; top: 10px; right: 10px; cursor: pointer;">✖</span>
+        </div>
+
+    </div>
+
+    <div id="animationOverlay" class="animation-overlay">
+        <!-- Sprites are created dynamically by spawnNext() -->
+    </div>
+    <div id="mobileControls">
+    <div id="animationStatus" role="status" aria-live="polite" hidden></div>
+    <button id="retryAnimation" type="button" hidden>Retry loading artwork</button>
+    <div id="animationStats" aria-live="off" role="button" tabindex="0"
+        aria-controls="infoBox" aria-expanded="true" title="Show animation controls"></div>
+
+    <div id="animationProgress">
+        <input type="range" id="progressSlider" min="0" max="0" value="0" step="1"
+            aria-label="Animation progress" />
+        <span id="progressLabel" role="button" tabindex="0" aria-controls="infoBox"
+            aria-expanded="true" title="Show animation controls"></span>
+    </div>
+
+    <div id="infoBox">
+        <a href="#" id="startAllAnimation" style="color: #6bff6b;" title="Every mosaic, by placement date — click again to pause or resume">InvAnim</a> |
+        <a href="#" id="startAnimation" style="color: #ff6b6b;" title="Paris mosaics, by number — click again to pause or resume">Paris</a> |
+        <a href="#" id="startMyAnimation" style="color: #6bafff;" title="Your flashed mosaics, by flash date — click again to pause or resume">My</a> |
+        <a href="#" id="openSettings">Settings</a>
+    </div>
+    </div>
+
+    <div class="folium-map" id="map"></div>
+    <script src="mobile.js"></script>
+</body>
+</html>

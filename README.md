@@ -1,4 +1,5 @@
 ## [Try it here](https://cplanty.github.io/InvAnim/site/)
+## [Mobile version](https://cplanty.github.io/InvAnim/site/mobile.html)
 
 # InvAnim
 
@@ -69,6 +70,49 @@ python -m http.server 8000
 
 Then open <http://localhost:8000>.
 
+### Isolated mobile version
+
+Open <http://localhost:8000/mobile.html>, or the hosted
+[mobile version](https://cplanty.github.io/InvAnim/site/mobile.html).
+It has its own `mobile.html`, `mobile.js`, `mobile.css` and
+`mobile-manifest.json`; the original entry point, scripts and styles are
+unchanged. Both versions read the same mosaic data and artwork, but the mobile
+version uses separate browser-storage keys and a separate installable-app ID.
+To use an existing collection, download its backup in the original version and
+restore it in the mobile version.
+
+The mobile version uses smaller, bounded-concurrency sprites, transform-based flights,
+a stacked touch-friendly control panel, viewport-aware city-core framing
+(with separate camera movements for outlying mosaics), artwork
+loading on demand, and a Canvas layer for completed mosaics. It pauses when
+Settings opens or the page is backgrounded; tap the active animation to resume.
+The InvAnim / Paris / My / Settings links hide when playback starts or resumes.
+Tap the bottom progress bar or stats text to reveal them without pausing; the
+slider continues to seek normally. The stats and progress label also support
+Enter or Space to reveal the links from the keyboard.
+
+Browser checks for the isolated mobile version (test-only dependencies):
+
+```powershell
+python -m pip install playwright
+python -m playwright install chromium webkit
+python -m unittest discover -s tests -p test_mobile.py -v
+$env:INVANIM_TEST_BROWSER = 'webkit'
+python -m unittest discover -s tests -p test_mobile.py -v
+Remove-Item Env:\INVANIM_TEST_BROWSER
+```
+
+These cover phone and landscape layouts, sprite size/concurrency/landing,
+camera transitions and cancellation, loading failures/retries, storage
+isolation, date filtering, seeking, rotation, and an original-page smoke check.
+Real Android Chrome and iPhone Safari checks are still needed for GPU/thermal
+performance, browser toolbars and safe-area behavior.
+WebKit testing also requires a build with AVIF decoding support: the Windows
+Playwright WebKit build may be unable to decode the existing artwork and will
+fail playback checks. That is not a substitute for testing current iPhone
+Safari. Browsers without AVIF support show an explicit artwork-loading error;
+the mobile version does not add another artwork format.
+
 Example: <http://localhost:8000/?tileset=dark&id=PA_01#zoom=14&lat=48.8583&lng=2.3477>
 
 ## URL parameters
@@ -86,6 +130,10 @@ site/                 the deployable static site (this is all that gets publishe
   index.html          markup, modals, UI
   map.js              map, markers, popups, sprite rendering, animation engine
   map.css             styling and animation keyframes
+  mobile.html         isolated mobile entry point
+  mobile.js           independent mobile map and animation engine
+  mobile.css          mobile layout, touch controls and animation styles
+  mobile-manifest.json separate mobile installable-app identity
   sw.js               minimal service worker (PWA)
   manifest.json       PWA manifest
   icons/              PWA icons
@@ -95,6 +143,7 @@ site/                 the deployable static site (this is all that gets publishe
   _headers            caching / security headers (Cloudflare Pages)
   404.html            required so Pages does not treat the site as an SPA
 docs/                 hosting and data notes
+tests/                browser checks for mobile behavior and desktop isolation
 ```
 
 See [docs/data.md](docs/data.md) for the data formats and
@@ -105,6 +154,11 @@ See [docs/data.md](docs/data.md) for the data formats and
 The site is ~13 MB across ~200 files and needs only static hosting with HTTPS.
 Cloudflare Pages (output directory `site`) and GitHub Pages (workflow included)
 are both supported out of the box — see [docs/hosting.md](docs/hosting.md).
+The current GitHub Pages deployment publishes `main` from the repository root,
+so the original app stays at `/InvAnim/site/` and mobile at
+`/InvAnim/site/mobile.html`. The Actions deployment workflow skips artifact
+publishing in this mode; it publishes `site` directly only when Pages is
+configured to use GitHub Actions.
 
 ## Privacy
 
