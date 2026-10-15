@@ -75,8 +75,9 @@ Then open <http://localhost:8000>.
 Open <http://localhost:8000/mobile.html>, or the hosted
 [mobile version](https://cplanty.github.io/InvAnim/site/mobile.html).
 It has its own `mobile.html`, `mobile.js`, `mobile.css` and
-`mobile-manifest.json`; the original entry point, scripts and styles are
-unchanged. Both versions read the same mosaic data and artwork, but the mobile
+`mobile-manifest.json`; the original animation engine and styles remain
+independent. Each version links to the other in Settings, with no automatic
+device detection or redirects. Both read the same mosaic data and artwork, but the mobile
 version uses separate browser-storage keys and a separate installable-app ID.
 To use an existing collection, download its backup in the original version and
 restore it in the mobile version.

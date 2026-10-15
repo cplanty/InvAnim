@@ -3,10 +3,11 @@
 InvAnim is a plain static site: **no build step, no server code, no database.**
 Application files live in `site/`.
 
-Both versions are static entry points: `index.html` is the unchanged original,
+Both versions are static entry points: `index.html` is the original desktop layout,
 and `mobile.html` is the isolated mobile version. Publish both with their
 respective JavaScript, CSS and manifests, plus the shared data, icons and
-artwork. There is no device detection or automatic redirect.
+artwork. Settings in each version links to the other; there is no device
+detection or automatic redirect.
 
 - **Size:** ~13 MB across ~200 files (10.8 MB of that is the AVIF atlases)
 - **Requirement:** static file serving over **HTTPS** (needed for the service

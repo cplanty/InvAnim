@@ -281,6 +281,23 @@ class MobileBrowserTests(unittest.TestCase):
         self.assertEqual(page.locator('link[href="map.css"]').count(), 1)
         self.assertFalse(page.evaluate("animationState.isPlaying"))
 
+    def test_settings_links_switch_both_versions_without_redirects(self):
+        page = self.new_page()
+        page.goto(f"{self.base_url}/index.html?tileset=none&id=PA_01")
+        page.wait_for_function("Object.keys(invaders).length > 0")
+        page.locator("#openSettings").click()
+        page.locator('#settingsModal a[href="mobile.html"]').click()
+        page.wait_for_url("**/mobile.html")
+        page.wait_for_function("animationState.ready && animationState.nextIndex > 0")
+        self.assertEqual(page.locator('script[src="mobile.js"]').count(), 1)
+        page.locator("#animationStats").tap()
+        page.locator("#openSettings").tap()
+        page.locator('#settingsModal a[href="index.html"]').click()
+        page.wait_for_url("**/index.html")
+        page.wait_for_function("Object.keys(invaders).length > 0")
+        self.assertEqual(page.locator('script[src="map.js"]').count(), 1)
+        self.assertEqual(page.locator("#mobileControls").count(), 0)
+
     def test_seek_resize_settings_and_reduced_motion(self):
         page = self.new_page(reduced_motion="reduce")
         self.open_mobile(page)
